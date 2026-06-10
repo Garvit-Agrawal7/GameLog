@@ -117,7 +117,6 @@ class IgdbService {
         summary: summary?.isNotEmpty == true ? summary! : seed.summary,
         rating: rating ?? seed.rating,
         hoursPlayed: seed.hoursPlayed,
-        timeToBeatHours: await fetchHastilyTimeToBeatHours(data['id'] is int ? data['id'] as int : seed.id),
         status: seed.status,
         year: year ?? seed.year,
         inLibrary: seed.inLibrary,
@@ -273,7 +272,6 @@ class IgdbService {
     final rating = _readRating(data);
     final summary = data['summary'] as String?;
     final year = _readYear(data);
-    final timeToBeatHours = await fetchHastilyTimeToBeatHours(id);
 
     return MockGame(
       id: id,
@@ -285,7 +283,6 @@ class IgdbService {
       summary: summary?.isNotEmpty == true ? summary! : '',
       rating: rating ?? 0,
       hoursPlayed: 0,
-      timeToBeatHours: timeToBeatHours,
       year: year ?? DateTime.now().year,
       lastUpdated: '',
     );

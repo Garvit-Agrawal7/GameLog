@@ -59,6 +59,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
           status: gameModel.status,
           inLibrary: gameModel.inLibrary,
           hoursPlayed: gameModel.hoursPlayed,
+          timeToBeatHours: gameModel.timeToBeatHours,
           lastUpdated: gameModel.lastUpdated,
         );
       }

@@ -83,7 +83,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
       return;
     }
 
-    _searchDebounce = Timer(const Duration(milliseconds: 100), () {
+    _searchDebounce = Timer(const Duration(milliseconds: 200), () {
       if (!mounted || query == _query) {
         return;
       }

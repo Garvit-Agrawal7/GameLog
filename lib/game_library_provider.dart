@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mock/mock_data.dart';
 import 'database/app_database.dart';
 import 'database/dao/games_dao.dart';
+import 'igdb_service.dart';
 
 // Async notifier for managing library games with database persistence
 class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
@@ -21,16 +22,18 @@ class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
 
   // Add a game to library with status
   Future<void> addToLibrary(MockGame game, {required String status, int? userRating}) async {
+    final timeToBeatHours = game.timeToBeatHours ?? await IgdbService().fetchHastilyTimeToBeatHours(game.id);
+    final gameToPersist = game.copyWith(timeToBeatHours: timeToBeatHours);
+
     // Persist to database first with current timestamp
-    final gameModel = _convertToGameModel(game);
-    final currentTimestamp = DateTime.now().toIso8601String();
+    final gameModel = _convertToGameModel(gameToPersist);
     final updatedModel = gameModel.copyWith(
       inLibrary: true,
       status: status,
       userRating: userRating,
     );
     
-    final existing = await _database.gamesDao.getGameById(game.id);
+    final existing = await _database.gamesDao.getGameById(gameToPersist.id);
 
     if (existing != null) {
       await _database.gamesDao.updateGame(updatedModel);

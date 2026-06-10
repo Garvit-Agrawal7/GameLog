@@ -137,7 +137,10 @@ final recentlyCompletedProvider = Provider<List<MockGame>>((ref) {
   return gamesAsync
       .whenData((games) {
         final completed = games
-            .where((g) => g.status == 'completed' && g.inLibrary)
+            .where((g) =>
+                g.status == 'completed' &&
+                g.inLibrary &&
+                (g.userRating ?? 0) >= 7)
             .toList();
         // Sort by lastUpdated descending (most recent first)
         completed.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));

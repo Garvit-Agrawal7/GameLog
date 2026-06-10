@@ -35,11 +35,13 @@ class GameDetailScreen extends ConsumerStatefulWidget {
 
 class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   late final Future<MockGame> _gameFuture;
+  late final Future<int?> _timeToBeatFuture;
 
   @override
   void initState() {
     super.initState();
     _gameFuture = _buildGameFuture();
+    _timeToBeatFuture = _loadTimeToBeat();
   }
 
   Future<MockGame> _buildGameFuture() async {
@@ -72,6 +74,15 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     }
 
     return enriched;
+  }
+
+  Future<int?> _loadTimeToBeat() async {
+    final existing = widget.game.timeToBeatHours;
+    if (existing != null) {
+      return existing;
+    }
+
+    return IgdbService().fetchHastilyTimeToBeatHours(widget.game.id);
   }
 
   @override
@@ -117,12 +128,18 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
 
         final game = snapshot.data!;
 
-        return _buildDetailScreen(context, game);
+        return FutureBuilder<int?>(
+          future: _timeToBeatFuture,
+          builder: (context, timeSnapshot) {
+            final timeToBeatHours = timeSnapshot.data ?? game.timeToBeatHours;
+            return _buildDetailScreen(context, game, timeToBeatHours);
+          },
+        );
       },
     );
   }
 
-  Widget _buildDetailScreen(BuildContext context, MockGame game) {
+  Widget _buildDetailScreen(BuildContext context, MockGame game, int? timeToBeatHours) {
     return Scaffold(
       backgroundColor: AppColors.bg0,
       body: CustomScrollView(
@@ -195,7 +212,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                       const Icon(Icons.access_time_rounded, color: AppColors.textMuted, size: 14),
                       const SizedBox(width: 4),
                       Text(
-                        game.timeToBeatHours == null ? 'Time to beat unavailable' : '${game.timeToBeatHours}h to beat',
+                        timeToBeatHours == null ? 'Time to beat unavailable' : '${timeToBeatHours}h to beat',
                         style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
                       ),
                     ],

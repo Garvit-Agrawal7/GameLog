@@ -79,6 +79,62 @@ class IgdbService {
     }
   }
 
+  Future<List<MockGame>> fetchSimilarGames(int gameId, {int limit = 10}) async {
+    try {
+      final token = await _getAccessToken();
+      const requestUrl = 'https://api.igdb.com/v4/games';
+      final response = await _dio.post(
+        requestUrl,
+        data: 'fields similar_games; where id = $gameId; limit 1;',
+        options: Options(
+          headers: {
+            'Client-ID': _clientId,
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (response.data is! List || (response.data as List).isEmpty) {
+        return const [];
+      }
+
+      final item = (response.data as List).firstWhere(
+        (e) => e is Map<String, dynamic>,
+        orElse: () => null,
+      ) as Map<String, dynamic>?;
+
+      final similarGames = item?['similar_games'];
+      final ids = <int>[];
+      if (similarGames is List) {
+        for (final entry in similarGames) {
+          if (entry is int && !ids.contains(entry)) {
+            ids.add(entry);
+          } else if (entry is Map<String, dynamic> && entry['id'] is int) {
+            final id = entry['id'] as int;
+            if (!ids.contains(id)) {
+              ids.add(id);
+            }
+          }
+          if (ids.length >= limit) {
+            break;
+          }
+        }
+      }
+
+      if (ids.isEmpty) {
+        return const [];
+      }
+
+      return _fetchGamesByIds(ids.take(limit).toList());
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        throw IgdbRateLimitException('Slow Down bruh');
+      }
+      rethrow;
+    }
+  }
+
   Future<MockGame> _fetchGameByTitle(MockGame seed) async {
     try {
       final token = await _getAccessToken();
@@ -109,7 +165,6 @@ class IgdbService {
 
 
       return MockGame(
-        // Keep the local id stable so SQLite lookups still work after enrichment.
         id: seed.id,
         title: data['name'] as String? ?? seed.title,
         coverUrl: coverId != null ? _coverUrl(coverId) : seed.coverUrl,

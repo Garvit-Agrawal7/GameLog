@@ -15,16 +15,26 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = const [
-    HomeScreen(),
-    LibraryScreen(),
-    DiscoverScreen(),
-  ];
+  int _libraryInitialTabIndex = 0;
+  int _libraryViewRequest = 0;
+  bool _animateLibraryTab = false;
 
   void _onNavTap(int index) {
     setState(() {
       _selectedIndex = index;
+      if (index == 1) {
+        _libraryInitialTabIndex = 0;
+        _animateLibraryTab = false;
+      }
+    });
+  }
+
+  void _showCompletedGames() {
+    setState(() {
+      _selectedIndex = 1;
+      _libraryInitialTabIndex = 2;
+      _animateLibraryTab = true;
+      _libraryViewRequest++;
     });
   }
 
@@ -65,10 +75,39 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      HomeScreen(onViewCompletedGames: _showCompletedGames),
+      LibraryScreen(
+        key: ValueKey('library-$_libraryInitialTabIndex-$_libraryViewRequest'),
+        initialTabIndex: _libraryInitialTabIndex,
+        animateToInitialTab: _animateLibraryTab,
+      ),
+      const DiscoverScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final slideAnimation = Tween<Offset>(
+            begin: const Offset(0.04, 0),
+            end: Offset.zero,
+          ).animate(animation);
+
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: slideAnimation,
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey(_selectedIndex),
+          child: pages[_selectedIndex],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddGameModal(context),

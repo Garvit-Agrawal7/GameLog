@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/database_providers.dart';
+import '../game_library_provider.dart';
 import '../igdb_service.dart';
 import '../mock/mock_data.dart';
 import '../theme/app_colors.dart';
@@ -12,16 +15,17 @@ import '../widgets/stat_column.dart';
 import 'game_detail_screen.dart';
 import 'add_game_modal.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.service});
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key, this.service, this.onViewCompletedGames});
 
   final IgdbService? service;
+  final VoidCallback? onViewCompletedGames;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final Future<List<MockGame>> _gamesFuture;
 
   @override
@@ -38,6 +42,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch recently completed games and stats from database providers
+    final recentlyCompleted = ref.watch(recentlyCompletedProvider);
+    final statsAsync = ref.watch(libraryStatsProvider);
+    final stats = statsAsync.when(
+      data: (value) => value,
+      loading: () => LibraryStats.empty(),
+      error: (_, __) => LibraryStats.empty(),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.bg0,
       body: FutureBuilder<List<MockGame>>(
@@ -61,9 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-           final games = snapshot.data ?? [];
-           final completedGames = games.where((game) => game.rating >= 85).take(4).toList();
-           final recommendedGame = _findByTitle(games, 'Horizon Zero Dawn') ?? games.firstOrNull;
+          final games = snapshot.data ?? [];
+          final recommendedGame = _findByTitle(games, 'Horizon Zero Dawn') ?? games.firstOrNull;
 
           if (recommendedGame == null) {
             return const Center(
@@ -78,138 +90,147 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Hello, PlayerOne!',
-                          style: AppTextStyles.caption.copyWith(fontSize: 16),
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.86,
-                          child: RichText(
-                            text: TextSpan(
-                              style: AppTextStyles.display.copyWith(height: 1.18),
-                              children: const [
-                                TextSpan(text: 'What game will you\nplay '),
-                                TextSpan(
-                                  text: 'next',
-                                  style: TextStyle(color: AppColors.accentPurple),
-                                ),
-                                TextSpan(text: '?'),
-                              ],
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hello, PlayerOne!',
+                              style: AppTextStyles.caption.copyWith(fontSize: 16),
                             ),
-                          ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.86,
+                              child: RichText(
+                                text: TextSpan(
+                                  style: AppTextStyles.display.copyWith(height: 1.18),
+                                  children: const [
+                                    TextSpan(text: 'What game will you\nplay '),
+                                    TextSpan(
+                                      text: 'next',
+                                      style: TextStyle(color: AppColors.accentPurple),
+                                    ),
+                                    TextSpan(text: '?'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                GestureDetector(
-                  onTap: () => showAddGameModal(context),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.bg2.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(24),
+                    const SizedBox(height: 28),
+                    GestureDetector(
+                      onTap: () => showAddGameModal(context),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.bg2.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search, color: AppColors.textMuted, size: 26),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Search games...',
+                                style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, color: AppColors.textMuted, size: 26),
-                        const SizedBox(width: 12),
-                        Expanded(
+                    const SizedBox(height: 28),
+                    SectionHeader(
+                      title: 'Recommended for you',
+                      actionLabel: 'See all',
+                      onTap: () => _showStub('See all recommendations'),
+                      leading: const Icon(Icons.auto_awesome_rounded, color: AppColors.accentPurple),
+                    ),
+                    const SizedBox(height: 16),
+                    _RecommendationCard(game: recommendedGame),
+                    const SizedBox(height: 28),
+                    SectionHeader(
+                      title: 'Recently Completed',
+                      actionLabel: 'View all',
+                      onTap: widget.onViewCompletedGames,
+                    ),
+                    const SizedBox(height: 16),
+                    if (recentlyCompleted.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
                           child: Text(
-                            'Search games...',
+                            'No completed games yet',
                             style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
                           ),
                         ),
-                      ],
+                      )
+                    else
+                      SizedBox(
+                        height: 220,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: recentlyCompleted.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 14),
+                          itemBuilder: (context, index) {
+                            return GameCoverCard(game: recentlyCompleted[index]);
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 28),
+                    SectionHeader(
+                      title: 'Your Stats',
+                      leading: const Icon(Icons.bar_chart_rounded, color: AppColors.accentPurple),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                SectionHeader(
-                  title: 'Recommended for you',
-                  actionLabel: 'See all',
-                  onTap: () => _showStub('See all recommendations'),
-                  leading: const Icon(Icons.auto_awesome_rounded, color: AppColors.accentPurple),
-                ),
-                const SizedBox(height: 16),
-                _RecommendationCard(game: recommendedGame),
-                const SizedBox(height: 28),
-                SectionHeader(
-                  title: 'Recently Completed',
-                  actionLabel: 'View all',
-                  onTap: () => _showStub('View all completed'),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 220,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: completedGames.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 14),
-                    itemBuilder: (context, index) {
-                      return GameCoverCard(game: completedGames[index]);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 28),
-                SectionHeader(
-                  title: 'Your Stats',
-                  actionLabel: 'This year',
-                  onTap: () => _showStub('Year filter'),
-                  leading: const Icon(Icons.bar_chart_rounded, color: AppColors.accentPurple),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.bg1,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      StatColumn(
-                        icon: Icons.sports_esports_rounded,
-                        iconColor: AppColors.accentPurple,
-                        value: 24,
-                        label1: 'Games',
-                        label2: 'Completed',
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.bg1,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      StatColumn(
-                        icon: Icons.access_time_rounded,
-                        iconColor: AppColors.accentBlue,
-                        value: 230,
-                        label1: 'Hours',
-                        label2: 'Played',
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          StatColumn(
+                            icon: Icons.sports_esports_rounded,
+                            iconColor: AppColors.accentPurple,
+                            value: stats.completedCount,
+                            label1: 'Games',
+                            label2: 'Completed',
+                          ),
+                          StatColumn(
+                            icon: Icons.access_time_rounded,
+                            iconColor: AppColors.accentBlue,
+                            value: stats.totalHours,
+                            label1: 'Hours',
+                            label2: 'Played',
+                          ),
+                          const StatColumn(
+                            icon: Icons.emoji_events_rounded,
+                            iconColor: AppColors.accentGreen,
+                            value: 12,
+                            label1: 'Achievements',
+                            label2: 'Earned',
+                          ),
+                          StatColumn(
+                            icon: Icons.star_outline_rounded,
+                            iconColor: AppColors.accentPurple,
+                            value: stats.averageRating,
+                            label1: 'Avg.',
+                            label2: 'Rating',
+                          ),
+                        ],
                       ),
-                      StatColumn(
-                        icon: Icons.emoji_events_rounded,
-                        iconColor: AppColors.accentGreen,
-                        value: 12,
-                        label1: 'Achievements',
-                        label2: 'Earned',
-                      ),
-                      StatColumn(
-                        icon: Icons.star_outline_rounded,
-                        iconColor: AppColors.accentPurple,
-                        value: 4.7,
-                        label1: 'Avg.',
-                        label2: 'Rating',
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
                     const SizedBox(height: 28),
                   ],
                 ),

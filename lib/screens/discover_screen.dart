@@ -197,10 +197,10 @@ class _DiscoverGameCard extends StatelessWidget {
               children: [
                 const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
                 const SizedBox(width: 3),
-                 Text(
-                   (game.rating / 10).toStringAsFixed(2),
-                   style: AppTextStyles.caption,
-                 ),
+                Text(
+                  (game.rating / 10).toStringAsFixed(2),
+                  style: AppTextStyles.caption,
+                ),
               ],
             ),
           ],
@@ -218,5 +218,3 @@ extension on Widget {
     );
   }
 }
-
-

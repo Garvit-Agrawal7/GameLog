@@ -9,45 +9,122 @@ import '../widgets/app_cached_image.dart';
 import 'game_detail_screen.dart';
 
 class LibraryScreen extends ConsumerWidget {
-  const LibraryScreen({super.key});
+  const LibraryScreen({
+    super.key,
+    this.initialTabIndex = 0,
+    this.animateToInitialTab = false,
+  });
+
+  final int initialTabIndex;
+  final bool animateToInitialTab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the game library provider to listen for changes
-    final games = ref.watch(gameLibraryProvider);
+    // Watch the async game library provider
+    final gamesAsync = ref.watch(gameLibraryProvider);
 
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
+    return gamesAsync.when(
+      loading: () => Scaffold(
         backgroundColor: AppColors.bg0,
-        appBar: AppBar(
-          title: const Text('My Games'),
-          bottom: TabBar(
-            isScrollable: true,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-            labelStyle: AppTextStyles.label.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: AppTextStyles.label.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
-            labelColor: AppColors.textPrimary,
-            unselectedLabelColor: AppColors.textMuted,
-            indicatorColor: AppColors.accentPurple,
-            tabs: const [
-              SizedBox(width: 110, child: Tab(text: 'All Games')),
-              SizedBox(width: 96, child: Tab(text: 'Playing')),
-              SizedBox(width: 112, child: Tab(text: 'Completed')),
-              SizedBox(width: 100, child: Tab(text: 'Wishlist')),
-              SizedBox(width: 92, child: Tab(text: 'Dropped')),
-            ],
+        appBar: AppBar(title: const Text('My Games')),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.accentPurple),
+        ),
+      ),
+      error: (error, stack) => Scaffold(
+        backgroundColor: AppColors.bg0,
+        appBar: AppBar(title: const Text('My Games')),
+        body: Center(
+          child: Text(
+            'Error loading library: $error',
+            style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
           ),
         ),
-        body: TabBarView(
-          children: [
-            _LibraryGrid(status: 'all', games: games),
-            _LibraryGrid(status: 'playing', games: games),
-            _LibraryGrid(status: 'completed', games: games),
-            _LibraryGrid(status: 'wishlist', games: games),
-            _LibraryGrid(status: 'dropped', games: games),
+      ),
+      data: (games) => DefaultTabController(
+        length: 5,
+        initialIndex: animateToInitialTab ? 0 : initialTabIndex,
+        child: _LibraryTabScaffold(
+          games: games,
+          targetTabIndex: initialTabIndex,
+          animateToTarget: animateToInitialTab,
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryTabScaffold extends StatefulWidget {
+  const _LibraryTabScaffold({
+    required this.games,
+    required this.targetTabIndex,
+    required this.animateToTarget,
+  });
+
+  final List<MockGame> games;
+  final int targetTabIndex;
+  final bool animateToTarget;
+
+  @override
+  State<_LibraryTabScaffold> createState() => _LibraryTabScaffoldState();
+}
+
+class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
+  bool _animationScheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_animationScheduled || !widget.animateToTarget || widget.targetTabIndex == 0) {
+      return;
+    }
+
+    _animationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      DefaultTabController.of(context).animateTo(
+        widget.targetTabIndex,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg0,
+      appBar: AppBar(
+        title: const Text('My Games'),
+        bottom: TabBar(
+          isScrollable: true,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+          labelStyle: AppTextStyles.label.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: AppTextStyles.label.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+          labelColor: AppColors.textPrimary,
+          unselectedLabelColor: AppColors.textMuted,
+          indicatorColor: AppColors.accentPurple,
+          tabs: const [
+            SizedBox(width: 110, child: Tab(text: 'All Games')),
+            SizedBox(width: 96, child: Tab(text: 'Playing')),
+            SizedBox(width: 112, child: Tab(text: 'Completed')),
+            SizedBox(width: 100, child: Tab(text: 'Wishlist')),
+            SizedBox(width: 92, child: Tab(text: 'Dropped')),
           ],
         ),
+      ),
+      body: TabBarView(
+        children: [
+          _LibraryGrid(status: 'all', games: widget.games),
+          _LibraryGrid(status: 'playing', games: widget.games),
+          _LibraryGrid(status: 'completed', games: widget.games),
+          _LibraryGrid(status: 'wishlist', games: widget.games),
+          _LibraryGrid(status: 'dropped', games: widget.games),
+        ],
       ),
     );
   }
@@ -168,7 +245,7 @@ class _LibraryGameCard extends ConsumerWidget {
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '${(game.rating / 10).round().clamp(1, 10)}',
+                              '${(game.userRating != null) ? game.userRating : (game.rating / 10).round().clamp(1, 10)}',
                               textAlign: TextAlign.left,
                               style: AppTextStyles.label.copyWith(
                                 fontSize: 15,
@@ -259,7 +336,7 @@ class _DetailPill extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+        style: AppTextStyles.caption.copyWith(color: AppColors.accentPurple),
       ),
     );
   }

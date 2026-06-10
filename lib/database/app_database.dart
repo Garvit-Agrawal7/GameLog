@@ -1,16 +1,16 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
-import 'daos/games_dao.dart';
-import 'game_converter.dart';
-import '../mock/mock_data.dart';
+import 'dao/games_dao.dart';
+import 'dao/search_history_dao.dart';
 
 class AppDatabase {
   static final AppDatabase _instance = AppDatabase._internal();
   late Database _db;
   late GamesDao gamesDao;
+  late SearchHistoryDao searchHistoryDao;
+  bool _initialized = false;
 
   factory AppDatabase() {
     return _instance;
@@ -19,17 +19,23 @@ class AppDatabase {
   AppDatabase._internal();
 
   Future<void> init() async {
+    if (_initialized) {
+      return;
+    }
+    
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'my_game_list.db'));
 
-    if (kDebugMode) {
-      print('Database path: ${file.path}');
-    }
-
     _db = sqlite3.open(file.path);
     gamesDao = GamesDao(_db);
+    searchHistoryDao = SearchHistoryDao(_db);
+    
+    // Enable foreign keys and set synchronous mode for data safety
+    _db.execute('PRAGMA foreign_keys = ON');
+    _db.execute('PRAGMA synchronous = FULL');
+    
     await _createTables();
-    await _seedDatabaseIfEmpty();
+    _initialized = true;
   }
 
   Future<void> _createTables() async {
@@ -45,34 +51,47 @@ class AppDatabase {
         time_to_beat_hours INTEGER,
         status TEXT,
         year INTEGER NOT NULL,
-        in_library INTEGER NOT NULL DEFAULT 1
+        in_library INTEGER NOT NULL DEFAULT 1,
+        last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        user_rating INTEGER
       )
     ''');
+
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS search_history_table (
+        query TEXT PRIMARY KEY COLLATE NOCASE,
+        last_searched TEXT NOT NULL
+      )
+    ''');
+
+      await _migrateSchema();
+  }
+  
+  Future<void> _migrateSchema() async {
+    try {
+      // Check existing table columns and add any new optional columns.
+      final pragma = _db.select('PRAGMA table_info(games_table)');
+      final columnNames = pragma.map((col) => col['name'] as String).toSet();
+
+      if (!columnNames.contains('last_updated')) {
+        _db.execute('ALTER TABLE games_table ADD COLUMN last_updated TEXT');
+        _db.execute(
+          'UPDATE games_table SET last_updated = CURRENT_TIMESTAMP WHERE last_updated IS NULL OR last_updated = ""'
+        );
+      } else {
+        // Ensure older rows have a timestamp
+        _db.execute(
+          'UPDATE games_table SET last_updated = CURRENT_TIMESTAMP WHERE last_updated IS NULL OR last_updated = ""'
+        );
+      }
+
+      if (!columnNames.contains('user_rating')) {
+        _db.execute('ALTER TABLE games_table ADD COLUMN user_rating INTEGER');
+        // Existing rows will have NULL for user_rating which is acceptable
+      }
+    } catch (e) {}
   }
 
-  Future<void> _seedDatabaseIfEmpty() async {
-    try {
-      final rows = _db.select('SELECT COUNT(*) as count FROM games_table');
-      final count = rows.first['count'] as int;
-      
-      if (count == 0) {
-        if (kDebugMode) {
-          print('Database is empty, seeding with mock data...');
-        }
-        final games = GameConverter.fromMockGamesList(mockGames);
-        for (final game in games) {
-          await gamesDao.insertGame(game);
-        }
-        if (kDebugMode) {
-          print('Database seeded with ${games.length} games');
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error seeding database: $e');
-      }
-    }
-  }
 
   Database get database => _db;
 
@@ -80,4 +99,3 @@ class AppDatabase {
     _db.close();
   }
 }
-

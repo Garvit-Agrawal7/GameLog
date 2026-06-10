@@ -11,8 +11,10 @@ class GameModel {
   final int hoursPlayed;
   final int? timeToBeatHours;
   final String? status;
+  final int? userRating;
   final int year;
   final bool inLibrary;
+  final String lastUpdated;
 
   GameModel({
     this.id,
@@ -24,8 +26,10 @@ class GameModel {
     required this.hoursPlayed,
     this.timeToBeatHours,
     this.status,
+    this.userRating,
     required this.year,
     required this.inLibrary,
+    required this.lastUpdated,
   });
 
   Map<String, Object?> toMap() {
@@ -41,6 +45,8 @@ class GameModel {
       'status': status,
       'year': year,
       'in_library': inLibrary ? 1 : 0,
+      'last_updated': lastUpdated,
+      'user_rating': userRating,
     };
   }
 
@@ -54,8 +60,11 @@ class GameModel {
     int? hoursPlayed,
     int? timeToBeatHours,
     String? status,
+    bool statusIsNull = false,
     int? year,
+    int? userRating,
     bool? inLibrary,
+    String? lastUpdated,
   }) {
     return GameModel(
       id: id ?? this.id,
@@ -66,16 +75,20 @@ class GameModel {
       rating: rating ?? this.rating,
       hoursPlayed: hoursPlayed ?? this.hoursPlayed,
       timeToBeatHours: timeToBeatHours ?? this.timeToBeatHours,
-      status: status ?? this.status,
+      status: statusIsNull ? null : (status ?? this.status),
       year: year ?? this.year,
+      userRating: userRating ?? this.userRating,
       inLibrary: inLibrary ?? this.inLibrary,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
 
   static GameModel fromRow(Row row) {
     final genresJson = row['genres'] as String;
     final List<String> genresList = List<String>.from(jsonDecode(genresJson));
-    
+    final rawLastUpdated = row['last_updated'];
+    final rawUserRating = row['user_rating'];
+
     return GameModel(
       id: row['id'] as int?,
       title: row['title'] as String,
@@ -88,6 +101,10 @@ class GameModel {
       status: row['status'] as String?,
       year: row['year'] as int,
       inLibrary: (row['in_library'] as int) == 1,
+      userRating: rawUserRating is int ? rawUserRating : (rawUserRating is num ? rawUserRating.toInt() : null),
+      lastUpdated: (rawLastUpdated is String && rawLastUpdated.isNotEmpty)
+          ? rawLastUpdated
+          : DateTime.now().toIso8601String(),
     );
   }
 }
@@ -96,6 +113,54 @@ class GamesDao {
   final Database _db;
 
   GamesDao(this._db);
+
+  void _ensureUserRatingColumnExists() {
+    final pragma = _db.select('PRAGMA table_info(games_table)');
+    final hasUserRating = pragma.any((col) => (col['name'] as String) == 'user_rating');
+    if (!hasUserRating) {
+      try {
+        _db.execute('ALTER TABLE games_table ADD COLUMN user_rating INTEGER');
+      } catch (_) {
+        // Column already exists
+      }
+    }
+  }
+
+  Future<int> getCompletedCount() async {
+    final result = _db.select(
+      'SELECT COUNT(*) as count FROM games_table WHERE status = ?',
+      ['completed'],
+    );
+    return result.first['count'] as int;
+  }
+
+  Future<int> getTotalTimeToBeat() async {
+    final result = _db.select(
+      'SELECT SUM(time_to_beat_hours) as total FROM games_table WHERE status = ?',
+      ['completed'],
+    );
+    final total = result.first['total'];
+    if (total == null) return 0;
+    return total is num ? total.toInt() : 0;
+  }
+
+  Future<double> getAverageRating() async {
+    final result = _db.select(
+      'SELECT COALESCE(SUM(rating), 0) as total_rating, COUNT(*) as completed_count '
+      'FROM games_table '
+      'WHERE in_library = 1 AND rating > 0 AND status = ?',
+      ['completed'],
+    );
+    final row = result.first;
+    final totalRating = row['total_rating'];
+    final completedCount = row['completed_count'];
+
+    if (totalRating is num && completedCount is num && completedCount > 0) {
+      return (totalRating.toDouble() / completedCount.toDouble()) / 10;
+    }
+
+    return 0.0;
+  }
 
   Future<List<GameModel>> getAllGames() async {
     final rows = _db.select('SELECT * FROM games_table ORDER BY title ASC');
@@ -119,13 +184,15 @@ class GamesDao {
   }
 
   Future<int> insertGame(GameModel game) async {
+    _ensureUserRatingColumnExists();
     _db.execute(
-      'INSERT INTO games_table (title, cover_url, genres, summary, rating, hours_played, time_to_beat_hours, status, year, in_library) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO games_table (id, title, cover_url, genres, summary, rating, hours_played, time_to_beat_hours, status, year, in_library, last_updated, user_rating) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
+        game.id,
         game.title,
         game.coverUrl,
-        game.genres,
+        jsonEncode(game.genres),
         game.summary,
         game.rating,
         game.hoursPlayed,
@@ -133,6 +200,8 @@ class GamesDao {
         game.status,
         game.year,
         game.inLibrary ? 1 : 0,
+        game.lastUpdated,
+        game.userRating,
       ],
     );
     // Get the last inserted id
@@ -141,13 +210,14 @@ class GamesDao {
   }
 
   Future<void> updateGame(GameModel game) async {
+    _ensureUserRatingColumnExists();
     _db.execute(
       'UPDATE games_table SET title = ?, cover_url = ?, genres = ?, summary = ?, rating = ?, '
-      'hours_played = ?, time_to_beat_hours = ?, status = ?, year = ?, in_library = ? WHERE id = ?',
+          'hours_played = ?, time_to_beat_hours = ?, status = ?, year = ?, in_library = ?, last_updated = ?, user_rating = ? WHERE id = ?',
       [
         game.title,
         game.coverUrl,
-        game.genres,
+        jsonEncode(game.genres),
         game.summary,
         game.rating,
         game.hoursPlayed,
@@ -155,6 +225,8 @@ class GamesDao {
         game.status,
         game.year,
         game.inLibrary ? 1 : 0,
+        game.lastUpdated,
+        game.userRating,
         game.id,
       ],
     );
@@ -165,11 +237,13 @@ class GamesDao {
   }
 
   Future<void> updateGameStatus(int id, String status) async {
-    _db.execute('UPDATE games_table SET status = ? WHERE id = ?', [status, id]);
+    _db.execute(
+      'UPDATE games_table SET status = ?, last_updated = ? WHERE id = ?',
+      [status, DateTime.now().toIso8601String(), id],
+    );
   }
 
   Future<void> clearAllGames() async {
     _db.execute('DELETE FROM games_table');
   }
 }
-

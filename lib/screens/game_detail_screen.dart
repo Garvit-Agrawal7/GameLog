@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
 import '../igdb_service.dart';
+import '../database/app_database.dart';
 import '../mock/mock_data.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -38,7 +39,38 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _gameFuture = IgdbService().enrichGames([widget.game]).then((games) => games.first);
+    _gameFuture = _buildGameFuture();
+  }
+
+  Future<MockGame> _buildGameFuture() async {
+    // Enrich the incoming game with IGDB data first
+    final enriched = (await IgdbService().enrichGames([widget.game])).first;
+
+    try {
+      // Check the local database for a stored entry for this game id.
+      final db = AppDatabase();
+      await db.init();
+      final gameModel = await db.gamesDao.getGameById(widget.game.id);
+
+      // If a DB entry exists and it has a non-null status, prefer the DB's status
+      // and other library-related fields (inLibrary, hoursPlayed, lastUpdated).
+      if (gameModel != null && gameModel.status != null) {
+        return enriched.copyWith(
+          status: gameModel.status,
+          inLibrary: gameModel.inLibrary,
+          hoursPlayed: gameModel.hoursPlayed,
+          lastUpdated: gameModel.lastUpdated,
+        );
+      }
+    } catch (e) {
+      // If DB access fails for any reason, fall back to the enriched data.
+      // We avoid failing the whole future because DB issues shouldn't block viewing details.
+      // Debug prints are helpful while developing.
+      // ignore: avoid_print
+      print('DEBUG: error reading DB in GameDetailScreen: $e');
+    }
+
+    return enriched;
   }
 
   @override
@@ -198,7 +230,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                                  borderRadius: BorderRadius.circular(20),
                                ),
                                child: Text(
-                                 game.status ?? '',
+                                 game.status == null ? '' : game.status![0].toUpperCase() + game.status!.substring(1),
                                  style: AppTextStyles.label.copyWith(color: AppColors.accentPurple),
                                ),
                              ),
@@ -207,24 +239,26 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                        ),
                      ),
                      const SizedBox(height: 8),
-                     TextButton(
-                       onPressed: () {
-                         ref.read(gameLibraryProvider.notifier).removeFromLibrary(game.id);
-                         Navigator.of(context).pop();
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(
-                             content: Text('${game.title} removed from library'),
-                             duration: const Duration(seconds: 2),
-                           ),
-                         );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        padding: EdgeInsets.zero,
-                        alignment: Alignment.centerLeft,
-                      ),
-                      child: const Text('Remove from Library'),
-                    ),
+                      TextButton(
+                        onPressed: () async {
+                          await ref.read(gameLibraryProvider.notifier).removeFromLibrary(game.id);
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${game.title} removed from library'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                       },
+                       style: TextButton.styleFrom(
+                         foregroundColor: AppColors.error,
+                         padding: EdgeInsets.zero,
+                         alignment: Alignment.centerLeft,
+                       ),
+                       child: const Text('Remove from Library'),
+                     ),
                   ],
                 ],
               ),

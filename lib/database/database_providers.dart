@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../game_library_provider.dart';
 import 'app_database.dart';
-import 'daos/games_dao.dart';
+import 'dao/games_dao.dart';
 
 final databaseProvider = FutureProvider<AppDatabase>((ref) async {
   final database = AppDatabase();
@@ -20,3 +21,45 @@ final gamesByStatusProvider =
   return database.gamesDao.getGamesByStatus(status);
 });
 
+final searchHistoryProvider = FutureProvider<List<String>>((ref) async {
+  final database = await ref.watch(databaseProvider.future);
+  return database.searchHistoryDao.getRecentSearches(limit: 8);
+});
+
+class LibraryStats {
+  final int completedCount;
+  final int totalHours;
+  final double averageRating;
+
+  LibraryStats({
+    required this.completedCount,
+    required this.totalHours,
+    required this.averageRating,
+  });
+
+  factory LibraryStats.empty() => LibraryStats(
+    completedCount: 0,
+    totalHours: 0,
+    averageRating: 0.0,
+  );
+}
+
+final libraryStatsProvider = FutureProvider<LibraryStats>((ref) async {
+  // Watch gameLibraryProvider to refresh stats when library changes
+  ref.watch(gameLibraryProvider);
+
+  final database = await ref.watch(databaseProvider.future);
+  final dao = database.gamesDao;
+
+  final results = await Future.wait([
+    dao.getCompletedCount(),
+    dao.getTotalTimeToBeat(),
+    dao.getAverageRating(),
+  ]);
+
+  return LibraryStats(
+    completedCount: results[0] as int,
+    totalHours: results[1] as int,
+    averageRating: results[2] as double,
+  );
+});

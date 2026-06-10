@@ -8,8 +8,10 @@ class MockGame {
   final int hoursPlayed;
   final int? timeToBeatHours;
   final String? status;
+  final int? userRating;
   final int year;
   final bool inLibrary;
+  final String lastUpdated;
 
   const MockGame({
     required this.id,
@@ -21,8 +23,10 @@ class MockGame {
     required this.hoursPlayed,
     this.timeToBeatHours,
     this.status,
+    this.userRating,
     required this.year,
     this.inLibrary = false,
+    required this.lastUpdated,
   });
 
   MockGame copyWith({
@@ -37,7 +41,9 @@ class MockGame {
     String? status,
     bool statusIsNull = false,
     int? year,
+    int? userRating,
     bool? inLibrary,
+    String? lastUpdated,
   }) {
     return MockGame(
       id: id ?? this.id,
@@ -49,8 +55,10 @@ class MockGame {
       hoursPlayed: hoursPlayed ?? this.hoursPlayed,
       timeToBeatHours: timeToBeatHours ?? this.timeToBeatHours,
       status: statusIsNull ? null : (status ?? this.status),
+      userRating: userRating ?? this.userRating,
       year: year ?? this.year,
       inLibrary: inLibrary ?? this.inLibrary,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
 }
@@ -66,6 +74,7 @@ const List<MockGame> mockGames = [
     rating: 97,
     hoursPlayed: 126,
     year: 2022,
+    lastUpdated: '',
   ),
   MockGame(
     id: 2,
@@ -77,6 +86,7 @@ const List<MockGame> mockGames = [
     rating: 96,
     hoursPlayed: 94,
     year: 2015,
+    lastUpdated: '',
   ),
   MockGame(
     id: 3,
@@ -88,6 +98,7 @@ const List<MockGame> mockGames = [
     rating: 94,
     hoursPlayed: 42,
     year: 2022,
+    lastUpdated: '',
   ),
   MockGame(
     id: 4,
@@ -99,6 +110,7 @@ const List<MockGame> mockGames = [
     rating: 95,
     hoursPlayed: 88,
     year: 2018,
+    lastUpdated: '',
   ),
   MockGame(
     id: 5,
@@ -110,6 +122,7 @@ const List<MockGame> mockGames = [
     rating: 89,
     hoursPlayed: 63,
     year: 2020,
+    lastUpdated: '',
   ),
   MockGame(
     id: 6,
@@ -121,6 +134,7 @@ const List<MockGame> mockGames = [
     rating: 99,
     hoursPlayed: 51,
     year: 2023,
+    lastUpdated: '',
   ),
   MockGame(
     id: 7,
@@ -132,6 +146,7 @@ const List<MockGame> mockGames = [
     rating: 92,
     hoursPlayed: 28,
     year: 2017,
+    lastUpdated: '',
   ),
   MockGame(
     id: 8,
@@ -143,6 +158,7 @@ const List<MockGame> mockGames = [
     rating: 91,
     hoursPlayed: 17,
     year: 2024,
+    lastUpdated: '',
   ),
   MockGame(
     id: 9,
@@ -154,6 +170,7 @@ const List<MockGame> mockGames = [
     rating: 93,
     hoursPlayed: 36,
     year: 2020,
+    lastUpdated: '',
   ),
   MockGame(
     id: 10,
@@ -165,6 +182,7 @@ const List<MockGame> mockGames = [
     rating: 91,
     hoursPlayed: 9,
     year: 2019,
+    lastUpdated: '',
   ),
   MockGame(
     id: 11,
@@ -176,6 +194,7 @@ const List<MockGame> mockGames = [
     rating: 88,
     hoursPlayed: 53,
     year: 2017,
+    lastUpdated: '',
   ),
   MockGame(
     id: 12,
@@ -187,6 +206,7 @@ const List<MockGame> mockGames = [
     rating: 90,
     hoursPlayed: 24,
     year: 2023,
+    lastUpdated: '',
   ),
 ];
 

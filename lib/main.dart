@@ -31,4 +31,3 @@ class MyGameListApp extends StatelessWidget {
     );
   }
 }
-

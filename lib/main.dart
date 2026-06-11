@@ -9,6 +9,7 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  print('CLIENT_ID: ${dotenv.env['CLIENT_ID']}');
 
   final database = AppDatabase();
   await database.init();

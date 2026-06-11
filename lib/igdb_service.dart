@@ -150,10 +150,11 @@ class IgdbService {
         return const [];
       }
 
-      return (gamesResponse.data as List)
-          .whereType<Map<String, dynamic>>()
-          .map(_payloadToGameModal)
-          .toList();
+      return await Future.wait(
+        (gamesResponse.data as List)
+            .whereType<Map<String, dynamic>>()
+            .map(_payloadToGameModal),
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
         throw IgdbRateLimitException('Slow Down bruh');
@@ -449,7 +450,7 @@ class IgdbService {
     ];
   }
 
-  GameModal _payloadToGameModal(Map<String, dynamic> data) {
+  Future<GameModal> _payloadToGameModal(Map<String, dynamic> data) async {
     final id = data['id'] is int ? data['id'] as int : data.hashCode;
     final coverId = _readCoverId(data);
     final genres = _readGenres(data);
@@ -467,6 +468,7 @@ class IgdbService {
       summary: summary?.isNotEmpty == true ? summary! : '',
       rating: rating ?? 0,
       hoursPlayed: 0,
+      timeToBeatHours: await fetchTimeToBeat(id),
       year: year ?? DateTime.now().year,
       lastUpdated: '',
     );

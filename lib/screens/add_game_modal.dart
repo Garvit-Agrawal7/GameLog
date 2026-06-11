@@ -665,4 +665,3 @@ class _RatingLabelClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _RatingLabelClipper oldClipper) => false;
 }
-

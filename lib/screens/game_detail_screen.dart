@@ -287,4 +287,3 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     );
   }
 }
-

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'game_modal.dart';
 import 'database/app_database.dart';
 import 'database/dao/games_dao.dart';
-import 'igdb_service.dart';
 
 // Async notifier for managing library games with database persistence
 class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
@@ -22,18 +21,15 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
 
   // Add a game to library with status
   Future<void> addToLibrary(GameModal game, {required String status, int? userRating}) async {
-    final timeToBeatHours = game.timeToBeatHours ?? await IgdbService().fetchTimeToBeat(game.id);
-    final gameToPersist = game.copyWith(timeToBeatHours: timeToBeatHours);
-
     // Persist to database first with current timestamp
-    final gameModel = _toGameModel(gameToPersist);
+    final gameModel = _toGameModel(game);
     final updatedModel = gameModel.copyWith(
       inLibrary: true,
       status: status,
       userRating: userRating,
     );
     
-    final existing = await _database.gamesDao.getGameById(gameToPersist.id);
+    final existing = await _database.gamesDao.getGameById(game.id);
 
     if (existing != null) {
       await _database.gamesDao.updateGame(updatedModel);
@@ -57,10 +53,7 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
 
   // Update a game's status
   Future<void> updateGameStatus(int gameId, String newStatus) async {
-    // Persist to database
     await _database.gamesDao.updateGameStatus(gameId, newStatus);
-
-    // Reload after write so the UI state always reflects the DB
     state = AsyncValue.data(await _loadLibraryFromDb());
   }
 
@@ -149,5 +142,3 @@ final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
       .value ??
       [];
 });
-
-

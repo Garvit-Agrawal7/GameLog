@@ -341,4 +341,3 @@ class _DetailPill extends StatelessWidget {
     );
   }
 }
-

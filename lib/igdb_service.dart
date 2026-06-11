@@ -624,7 +624,4 @@ class IgdbService {
       return null;
     }
   }
-
-
 }
-

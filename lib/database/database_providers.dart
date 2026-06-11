@@ -27,17 +27,20 @@ final searchHistoryProvider = FutureProvider<List<String>>((ref) async {
 });
 
 class LibraryStats {
+  final int playingCount;
   final int completedCount;
   final int totalHours;
   final double averageRating;
 
   LibraryStats({
+    required this.playingCount,
     required this.completedCount,
     required this.totalHours,
     required this.averageRating,
   });
 
   factory LibraryStats.empty() => LibraryStats(
+    playingCount: 0,
     completedCount: 0,
     totalHours: 0,
     averageRating: 0.0,
@@ -52,14 +55,16 @@ final libraryStatsProvider = FutureProvider<LibraryStats>((ref) async {
   final dao = database.gamesDao;
 
   final results = await Future.wait([
+    dao.getPlayingCount(),
     dao.getCompletedCount(),
     dao.getTotalTimeToBeat(),
     dao.getAverageRating(),
   ]);
 
   return LibraryStats(
-    completedCount: results[0] as int,
-    totalHours: results[1] as int,
-    averageRating: results[2] as double,
+    playingCount: results[0] as int,
+    completedCount: results[1] as int,
+    totalHours: results[2] as int,
+    averageRating: results[3] as double,
   );
 });

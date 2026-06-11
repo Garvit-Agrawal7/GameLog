@@ -216,6 +216,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           StatColumn(
+                            icon: Icons.play_circle_outline_rounded,
+                            iconColor: AppColors.accentGreen,
+                            value: stats.playingCount,
+                            label1: 'Currently',
+                            label2: 'Playing',
+                          ),
+                          StatColumn(
                             icon: Icons.sports_esports_rounded,
                             iconColor: AppColors.accentPurple,
                             value: stats.completedCount,
@@ -228,13 +235,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             value: stats.totalHours,
                             label1: 'Hours',
                             label2: 'Played',
-                          ),
-                          const StatColumn(
-                            icon: Icons.emoji_events_rounded,
-                            iconColor: AppColors.accentGreen,
-                            value: 12,
-                            label1: 'Achievements',
-                            label2: 'Earned',
                           ),
                           StatColumn(
                             icon: Icons.star_outline_rounded,

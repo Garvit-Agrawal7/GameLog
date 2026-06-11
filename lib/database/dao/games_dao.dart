@@ -126,6 +126,15 @@ class GamesDao {
     }
   }
 
+  Future<int> getPlayingCount() async {
+    final total = _db.select(
+        'SELECT COUNT(*) as count FROM games_table WHERE status = ?',
+        ['playing']
+    );
+    final count =  total.first['count'] as int;
+    return count.toInt();
+  }
+
   Future<int> getCompletedCount() async {
     final result = _db.select(
       'SELECT COUNT(*) as count FROM games_table WHERE status = ?',

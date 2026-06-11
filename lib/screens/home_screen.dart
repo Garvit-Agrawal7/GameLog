@@ -27,31 +27,7 @@ const List<GameModal> _homeSeedGames = [
     hoursPlayed: 53,
     year: 2017,
     lastUpdated: '',
-  ),
-  GameModal(
-    id: 1,
-    title: 'Elden Ring',
-    coverUrl: 'https://picsum.photos/seed/elden-ring/800/1200',
-    genres: ['RPG', 'Action', 'Open World'],
-    summary:
-        'Forge your own path through a vast shattered kingdom filled with secrets, massive bosses, and wonder.',
-    rating: 97,
-    hoursPlayed: 126,
-    year: 2022,
-    lastUpdated: '',
-  ),
-  GameModal(
-    id: 6,
-    title: 'Baldur\'s Gate 3',
-    coverUrl: 'https://picsum.photos/seed/baldurs-gate-3/800/1200',
-    genres: ['RPG', 'Strategy', 'Fantasy'],
-    summary:
-        'Lead a party of companions through a reactive fantasy world full of choices, dice rolls, and chaos.',
-    rating: 99,
-    hoursPlayed: 51,
-    year: 2023,
-    lastUpdated: '',
-  ),
+  )
 ];
 
 class HomeScreen extends ConsumerStatefulWidget {

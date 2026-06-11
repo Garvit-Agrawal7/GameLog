@@ -108,7 +108,7 @@ class IgdbService {
       }
 
       final item = (response.data as List).firstWhere(
-        (e) => e is Map<String, dynamic>,
+            (e) => e is Map<String, dynamic>,
         orElse: () => null,
       ) as Map<String, dynamic>?;
 
@@ -124,17 +124,36 @@ class IgdbService {
               ids.add(id);
             }
           }
-          if (ids.length >= limit) {
-            break;
-          }
+          if (ids.length >= limit) break;
         }
       }
 
-      if (ids.isEmpty) {
+      if (ids.isEmpty) return const [];
+
+      final token2 = await _getAccessToken();
+      final gamesResponse = await _dio.post(
+        requestUrl,
+        data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
+            'where id = (${ids.join(',')}) & rating != null; '
+            'sort rating desc; '
+            'limit ${ids.length};',
+        options: Options(
+          headers: {
+            'Client-ID': _clientId,
+            'Authorization': 'Bearer $token2',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (gamesResponse.data is! List || (gamesResponse.data as List).isEmpty) {
         return const [];
       }
 
-      return _fetchGamesByIds(ids.take(limit).toList());
+      return (gamesResponse.data as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_payloadToGameModal)
+          .toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
         throw IgdbRateLimitException('Slow Down bruh');
@@ -430,7 +449,7 @@ class IgdbService {
     ];
   }
 
-  Future<GameModal> _payloadToGameModal(Map<String, dynamic> data) async {
+  GameModal _payloadToGameModal(Map<String, dynamic> data) {
     final id = data['id'] is int ? data['id'] as int : data.hashCode;
     final coverId = _readCoverId(data);
     final genres = _readGenres(data);

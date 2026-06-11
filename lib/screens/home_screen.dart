@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database_providers.dart';
 import '../game_library_provider.dart';
 import '../igdb_service.dart';
-import '../mock/mock_data.dart';
+import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
@@ -14,6 +14,45 @@ import '../widgets/section_header.dart';
 import '../widgets/stat_column.dart';
 import 'game_detail_screen.dart';
 import 'add_game_modal.dart';
+
+const List<GameModal> _homeSeedGames = [
+  GameModal(
+    id: 11,
+    title: 'Horizon Zero Dawn',
+    coverUrl: 'https://picsum.photos/seed/horizon-zero-dawn/800/1200',
+    genres: ['Action', 'RPG', 'Open World'],
+    summary:
+        'A sprawling open-world adventure where machine hunting and ancient mysteries shape every horizon.',
+    rating: 88,
+    hoursPlayed: 53,
+    year: 2017,
+    lastUpdated: '',
+  ),
+  GameModal(
+    id: 1,
+    title: 'Elden Ring',
+    coverUrl: 'https://picsum.photos/seed/elden-ring/800/1200',
+    genres: ['RPG', 'Action', 'Open World'],
+    summary:
+        'Forge your own path through a vast shattered kingdom filled with secrets, massive bosses, and wonder.',
+    rating: 97,
+    hoursPlayed: 126,
+    year: 2022,
+    lastUpdated: '',
+  ),
+  GameModal(
+    id: 6,
+    title: 'Baldur\'s Gate 3',
+    coverUrl: 'https://picsum.photos/seed/baldurs-gate-3/800/1200',
+    genres: ['RPG', 'Strategy', 'Fantasy'],
+    summary:
+        'Lead a party of companions through a reactive fantasy world full of choices, dice rolls, and chaos.',
+    rating: 99,
+    hoursPlayed: 51,
+    year: 2023,
+    lastUpdated: '',
+  ),
+];
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.service, this.onViewCompletedGames});
@@ -26,12 +65,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late final Future<List<MockGame>> _gamesFuture;
+  late final Future<List<GameModal>> _gamesFuture;
 
   @override
   void initState() {
     super.initState();
-    _gamesFuture = (widget.service ?? IgdbService()).enrichGames(mockGames);
+    _gamesFuture = (widget.service ?? IgdbService()).enrichGames(_homeSeedGames);
   }
 
   void _showStub(String label) {
@@ -53,7 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg0,
-      body: FutureBuilder<List<MockGame>>(
+      body: FutureBuilder<List<GameModal>>(
         future: _gamesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -242,7 +281,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  MockGame? _findByTitle(List<MockGame> games, String title) {
+  GameModal? _findByTitle(List<GameModal> games, String title) {
     for (final game in games) {
       if (game.title == title) {
         return game;
@@ -256,7 +295,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class _RecommendationCard extends StatelessWidget {
   const _RecommendationCard({required this.game});
 
-  final MockGame game;
+  final GameModal game;
 
   @override
   Widget build(BuildContext context) {
@@ -316,3 +355,4 @@ class _RecommendationCard extends StatelessWidget {
     );
   }
 }
+

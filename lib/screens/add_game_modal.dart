@@ -8,7 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../database/database_providers.dart';
 import '../game_library_provider.dart';
 import '../igdb_service.dart';
-import '../mock/mock_data.dart';
+import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_button.dart';
@@ -35,7 +35,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
   final TextEditingController _controller = TextEditingController();
   late final IgdbService _service;
   late Future<List<String>> _historyFuture;
-  Future<List<MockGame>>? _searchFuture;
+  Future<List<GameModal>>? _searchFuture;
   Timer? _searchDebounce;
   Timer? _historyDebounce;
   String _query = '';
@@ -59,7 +59,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
     return ref.read(searchHistoryProvider.future);
   }
 
-  Future<List<MockGame>> _loadSearchResults(String query) async {
+  Future<List<GameModal>> _loadSearchResults(String query) async {
     return _service.searchGames(query, limit: 50);
   }
 
@@ -108,7 +108,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
     _onSearchChanged(query);
   }
 
-  Future<void> _openStatusSheet(MockGame game) {
+  Future<void> _openStatusSheet(GameModal game) {
     return showStatusSelectionSheet(context, game, ref);
   }
 
@@ -159,7 +159,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
     );
   }
 
-  Widget _buildSearchResults(List<MockGame> games) {
+  Widget _buildSearchResults(List<GameModal> games) {
     if (games.isEmpty) {
       return Center(
         child: Padding(
@@ -311,7 +311,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
                     },
                   )
                 else
-                  FutureBuilder<List<MockGame>>(
+                  FutureBuilder<List<GameModal>>(
                     future: _searchFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState != ConnectionState.done) {
@@ -344,7 +344,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
 
 Future<void> showStatusSelectionSheet(
     BuildContext context,
-    MockGame game,
+    GameModal game,
     WidgetRef ref,
     ) {
   String selectedStatus = 'playing';
@@ -665,3 +665,4 @@ class _RatingLabelClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _RatingLabelClipper oldClipper) => false;
 }
+

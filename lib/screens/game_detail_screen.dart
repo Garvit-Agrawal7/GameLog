@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../game_library_provider.dart';
 import '../igdb_service.dart';
 import '../database/app_database.dart';
-import '../mock/mock_data.dart';
+import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
@@ -27,14 +27,14 @@ String heroCoverImageUrl(String imageUrl) {
 class GameDetailScreen extends ConsumerStatefulWidget {
   const GameDetailScreen({super.key, required this.game});
 
-  final MockGame game;
+  final GameModal game;
 
   @override
   ConsumerState<GameDetailScreen> createState() => _GameDetailScreenState();
 }
 
 class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
-  late final Future<MockGame> _gameFuture;
+  late final Future<GameModal> _gameFuture;
   late final Future<int?> _timeToBeatFuture;
 
   @override
@@ -44,7 +44,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     _timeToBeatFuture = _loadTimeToBeat();
   }
 
-  Future<MockGame> _buildGameFuture() async {
+  Future<GameModal> _buildGameFuture() async {
     // Enrich the incoming game with IGDB data first
     final enriched = (await IgdbService().enrichGames([widget.game])).first;
 
@@ -82,12 +82,12 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       return existing;
     }
 
-    return IgdbService().fetchHastilyTimeToBeatHours(widget.game.id);
+    return IgdbService().fetchTimeToBeat(widget.game.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<MockGame>(
+    return FutureBuilder<GameModal>(
       future: _gameFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -139,7 +139,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     );
   }
 
-  Widget _buildDetailScreen(BuildContext context, MockGame game, int? timeToBeatHours) {
+  Widget _buildDetailScreen(BuildContext context, GameModal game, int? timeToBeatHours) {
     return Scaffold(
       backgroundColor: AppColors.bg0,
       body: CustomScrollView(
@@ -287,3 +287,4 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     );
   }
 }
+

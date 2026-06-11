@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:my_game_list/screens/game_detail_screen.dart';
-import '../mock/mock_data.dart';
+import '../game_modal.dart';
 import '../theme/app_text_styles.dart';
 import 'app_cached_image.dart';
 
 class GameCoverCard extends StatefulWidget {
   const GameCoverCard({super.key, required this.game, this.width = 140, this.height = 185});
 
-  final MockGame game;
+  final GameModal game;
   final double width;
   final double height;
 
@@ -98,4 +98,5 @@ class _GameCoverCardState extends State<GameCoverCard> {
     );
   }
 }
+
 

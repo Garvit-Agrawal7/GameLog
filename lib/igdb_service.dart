@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'mock/mock_data.dart';
+import 'game_modal.dart';
 
 class IgdbRateLimitException implements Exception {
   IgdbRateLimitException(this.message);
@@ -31,15 +31,23 @@ class IgdbService {
   DateTime? _tokenExpiry;
   Future<String>? _tokenRequest;
 
-  Future<List<MockGame>> enrichGames(List<MockGame> seeds) async {
+  Future<List<GameModal>> enrichGames(List<GameModal> seeds) async {
     if (seeds.isEmpty) {
       return seeds;
     }
 
-    return Future.wait(seeds.map(_fetchGameByTitle));
+    final enriched = <GameModal>[];
+    const batchSize = 10;
+
+    for (var index = 0; index < seeds.length; index += batchSize) {
+      final batch = seeds.sublist(index, index + batchSize > seeds.length ? seeds.length : index + batchSize);
+      enriched.addAll(await _enrichGames(batch));
+    }
+
+    return enriched;
   }
 
-  Future<List<MockGame>> searchGames(String query, {int limit = 10}) async {
+  Future<List<GameModal>> searchGames(String query, {int limit = 10}) async {
     final trimmedQuery = query.trim();
     if (trimmedQuery.isEmpty) {
       return const [];
@@ -50,7 +58,7 @@ class IgdbService {
       const requestUrl = 'https://api.igdb.com/v4/search';
       final response = await _dio.post(
         requestUrl,
-        data: _buildSearchQuery(trimmedQuery, limit),
+        data: _buildSearch(trimmedQuery, limit),
         options: Options(
           headers: {
             'Client-ID': _clientId,
@@ -79,7 +87,7 @@ class IgdbService {
     }
   }
 
-  Future<List<MockGame>> fetchSimilarGames(int gameId, {int limit = 10}) async {
+  Future<List<GameModal>> fetchSimilarGames(int gameId, {int limit = 10}) async {
     try {
       final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/games';
@@ -135,7 +143,7 @@ class IgdbService {
     }
   }
 
-  Future<MockGame> _fetchGameByTitle(MockGame seed) async {
+  Future<GameModal> _fetchGameByTitle(GameModal seed) async {
     try {
       final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/games';
@@ -164,7 +172,7 @@ class IgdbService {
       final year = _readYear(data);
 
 
-      return MockGame(
+      return GameModal(
         id: seed.id,
         title: data['name'] as String? ?? seed.title,
         coverUrl: coverId != null ? _coverUrl(coverId) : seed.coverUrl,
@@ -185,6 +193,108 @@ class IgdbService {
     } catch (e) {
       return seed;
     }
+  }
+
+  Future<List<GameModal>> _enrichGames(List<GameModal> batch) async {
+    if (batch.isEmpty) {
+      return const [];
+    }
+
+    if (batch.length == 1) {
+      return [await _fetchGameByTitle(batch.first)];
+    }
+
+    try {
+      final token = await _getAccessToken();
+      const requestUrl = 'https://api.igdb.com/v4/multiquery';
+      final response = await _dio.post(
+        requestUrl,
+        data: _buildMultiQuery(batch),
+        options: Options(
+          headers: {
+            'Client-ID': _clientId,
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (response.data is! List || (response.data as List).isEmpty) {
+        return Future.wait(batch.map(_fetchGameByTitle));
+      }
+
+      final resultByIndex = <int, List<dynamic>>{};
+      for (final item in (response.data as List).whereType<Map<String, dynamic>>()) {
+        final name = item['name'];
+        final result = item['result'];
+        if (name is! String || result is! List) {
+          continue;
+        }
+
+        final index = int.tryParse(name);
+        if (index != null) {
+          resultByIndex[index] = result;
+        }
+      }
+
+      final enriched = <GameModal>[];
+      for (var i = 0; i < batch.length; i++) {
+        final seed = batch[i];
+        final payload = resultByIndex[i];
+        if (payload == null || payload.isEmpty) {
+          enriched.add(seed);
+          continue;
+        }
+
+        final data = _pickBestMatch(seed.title, payload) ?? payload.first as Map<String, dynamic>;
+        final coverId = _readCoverId(data);
+        final genres = _readGenres(data);
+        final rating = _readRating(data);
+        final summary = data['summary'] as String? ?? data['description'] as String?;
+        final year = _readYear(data);
+
+        enriched.add(
+          GameModal(
+            id: seed.id,
+            title: data['name'] as String? ?? seed.title,
+            coverUrl: coverId != null ? _coverUrl(coverId) : seed.coverUrl,
+            genres: genres.isNotEmpty ? genres : seed.genres,
+            summary: summary?.isNotEmpty == true ? summary! : seed.summary,
+            rating: rating ?? seed.rating,
+            hoursPlayed: seed.hoursPlayed,
+            status: seed.status,
+            year: year ?? seed.year,
+            inLibrary: seed.inLibrary,
+            lastUpdated: seed.lastUpdated,
+          ),
+        );
+      }
+
+      return enriched;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        throw IgdbRateLimitException('Slow Down bruh');
+      }
+      return Future.wait(batch.map(_fetchGameByTitle));
+    } catch (_) {
+      return Future.wait(batch.map(_fetchGameByTitle));
+    }
+  }
+
+  String _buildMultiQuery(List<GameModal> batch) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < batch.length; i++) {
+      final escapedTitle = batch[i].title.replaceAll('"', '\\"');
+      buffer.writeln('query games "$i" {');
+      buffer.writeln('  search "$escapedTitle";');
+      buffer.writeln('  fields name,summary,cover.image_id,genres.name,first_release_date,rating;');
+      buffer.writeln('  limit 5;');
+      buffer.writeln('};');
+      if (i < batch.length - 1) {
+        buffer.writeln();
+      }
+    }
+    return buffer.toString();
   }
 
   Future<String> _getAccessToken() {
@@ -239,7 +349,7 @@ class IgdbService {
         'limit 5;';
   }
 
-  String _buildSearchQuery(String query, int limit) {
+  String _buildSearch(String query, int limit) {
     final escapedQuery = query.replaceAll('"', '\\"');
     return 'search "$escapedQuery"; '
         'fields alternative_name,description,game,name,published_at; '
@@ -263,14 +373,14 @@ class IgdbService {
     return ids;
   }
 
-  MockGame _searchResultToGame(Map<String, dynamic> data) {
+  GameModal _searchResultToGame(Map<String, dynamic> data) {
     final id = data['game'] is int
         ? data['game'] as int
         : data['id'] is int
             ? data['id'] as int
             : data.hashCode;
     final publishedAt = data['published_at'];
-    return MockGame(
+    return GameModal(
       id: id,
       title: data['name'] as String? ?? data['alternative_name'] as String? ?? 'Unknown Game',
       coverUrl: 'https://picsum.photos/seed/igdb-$id/800/1200',
@@ -285,7 +395,7 @@ class IgdbService {
     );
   }
 
-  Future<List<MockGame>> _fetchGamesByIds(List<int> ids) async {
+  Future<List<GameModal>> _fetchGamesByIds(List<int> ids) async {
     final token = await _getAccessToken();
     const requestUrl = 'https://api.igdb.com/v4/games';
     final response = await _dio.post(
@@ -306,11 +416,11 @@ class IgdbService {
       return const [];
     }
 
-    final gamesById = <int, MockGame>{};
+    final gamesById = <int, GameModal>{};
     for (final item in (response.data as List).whereType<Map<String, dynamic>>()) {
       final itemId = item['id'];
       if (itemId is int) {
-        gamesById[itemId] = await _gamePayloadToMockGame(item);
+        gamesById[itemId] = await _payloadToGameModal(item);
       }
     }
 
@@ -320,7 +430,7 @@ class IgdbService {
     ];
   }
 
-  Future<MockGame> _gamePayloadToMockGame(Map<String, dynamic> data) async {
+  Future<GameModal> _payloadToGameModal(Map<String, dynamic> data) async {
     final id = data['id'] is int ? data['id'] as int : data.hashCode;
     final coverId = _readCoverId(data);
     final genres = _readGenres(data);
@@ -328,7 +438,7 @@ class IgdbService {
     final summary = data['summary'] as String?;
     final year = _readYear(data);
 
-    return MockGame(
+    return GameModal(
       id: id,
       title: data['name'] as String? ?? 'Unknown Game',
       coverUrl: coverId != null
@@ -476,7 +586,7 @@ class IgdbService {
     return 'https://images.igdb.com/igdb/image/upload/t_1080p/$imageId.jpg';
   }
 
-  Future<int?> fetchHastilyTimeToBeatHours(int gameId) async {
+  Future<int?> fetchTimeToBeat(int gameId) async {
     try {
       final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/game_time_to_beats';
@@ -517,3 +627,4 @@ class IgdbService {
 
 
 }
+

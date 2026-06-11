@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
-import '../mock/mock_data.dart';
+import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
@@ -61,7 +61,7 @@ class _LibraryTabScaffold extends StatefulWidget {
     required this.animateToTarget,
   });
 
-  final List<MockGame> games;
+  final List<GameModal> games;
   final int targetTabIndex;
   final bool animateToTarget;
 
@@ -134,7 +134,7 @@ class _LibraryGrid extends StatelessWidget {
   const _LibraryGrid({required this.status, required this.games});
 
   final String status;
-  final List<MockGame> games;
+  final List<GameModal> games;
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +170,7 @@ class _LibraryGrid extends StatelessWidget {
 class _LibraryGameCard extends ConsumerWidget {
   const _LibraryGameCard({required this.game});
 
-  final MockGame game;
+  final GameModal game;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -341,3 +341,4 @@ class _DetailPill extends StatelessWidget {
     );
   }
 }
+

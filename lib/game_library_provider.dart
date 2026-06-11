@@ -1,32 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'mock/mock_data.dart';
+import 'game_modal.dart';
 import 'database/app_database.dart';
 import 'database/dao/games_dao.dart';
 import 'igdb_service.dart';
 
 // Async notifier for managing library games with database persistence
-class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
+class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
   late AppDatabase _database;
 
-  Future<List<MockGame>> _loadLibraryFromDb() async {
+  Future<List<GameModal>> _loadLibraryFromDb() async {
     final gameModels = await _database.gamesDao.getAllGames();
-    return gameModels.map(_convertToMockGame).toList();
+    return gameModels.map(_toGameModal).toList();
   }
 
   @override
-  Future<List<MockGame>> build() async {
+  Future<List<GameModal>> build() async {
     _database = AppDatabase();
     await _database.init();
     return _loadLibraryFromDb();
   }
 
   // Add a game to library with status
-  Future<void> addToLibrary(MockGame game, {required String status, int? userRating}) async {
-    final timeToBeatHours = game.timeToBeatHours ?? await IgdbService().fetchHastilyTimeToBeatHours(game.id);
+  Future<void> addToLibrary(GameModal game, {required String status, int? userRating}) async {
+    final timeToBeatHours = game.timeToBeatHours ?? await IgdbService().fetchTimeToBeat(game.id);
     final gameToPersist = game.copyWith(timeToBeatHours: timeToBeatHours);
 
     // Persist to database first with current timestamp
-    final gameModel = _convertToGameModel(gameToPersist);
+    final gameModel = _toGameModel(gameToPersist);
     final updatedModel = gameModel.copyWith(
       inLibrary: true,
       status: status,
@@ -64,8 +64,8 @@ class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
     state = AsyncValue.data(await _loadLibraryFromDb());
   }
 
-  MockGame _convertToMockGame(GameModel model) {
-    return MockGame(
+  GameModal _toGameModal(GameModel model) {
+    return GameModal(
       id: model.id ?? 0,
       title: model.title,
       coverUrl: model.coverUrl,
@@ -82,7 +82,7 @@ class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
     );
   }
 
-  GameModel _convertToGameModel(MockGame game, {String? lastUpdated}) {
+  GameModel _toGameModel(GameModal game, {String? lastUpdated}) {
     return GameModel(
       id: game.id,
       title: game.title,
@@ -103,7 +103,7 @@ class GameLibraryNotifier extends AsyncNotifier<List<MockGame>> {
 
 // Global async provider for the game library state
 final gameLibraryProvider =
-    AsyncNotifierProvider<GameLibraryNotifier, List<MockGame>>(() {
+    AsyncNotifierProvider<GameLibraryNotifier, List<GameModal>>(() {
   return GameLibraryNotifier();
 });
 
@@ -113,14 +113,14 @@ final libraryGamesProvider = Provider((ref) {
   return gamesAsync.whenData((games) => games.where((g) => g.inLibrary).toList()).value ?? [];
 });
 
-final gamesByStatusProvider = Provider.family<List<MockGame>, String>((ref, status) {
+final gamesByStatusProvider = Provider.family<List<GameModal>, String>((ref, status) {
   final gamesAsync = ref.watch(gameLibraryProvider);
   return gamesAsync
       .whenData((games) => games.where((g) => g.status == status && g.inLibrary).toList())
       .value ?? [];
 });
 
-final gameProvider = Provider.family<MockGame?, int>((ref, gameId) {
+final gameProvider = Provider.family<GameModal?, int>((ref, gameId) {
   final gamesAsync = ref.watch(gameLibraryProvider);
   return gamesAsync.whenData((games) {
     try {
@@ -132,7 +132,7 @@ final gameProvider = Provider.family<MockGame?, int>((ref, gameId) {
 });
 
 // Provider to get recently completed games (sorted by last_updated)
-final recentlyCompletedProvider = Provider<List<MockGame>>((ref) {
+final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
   final gamesAsync = ref.watch(gameLibraryProvider);
   return gamesAsync
       .whenData((games) {
@@ -149,4 +149,5 @@ final recentlyCompletedProvider = Provider<List<MockGame>>((ref) {
       .value ??
       [];
 });
+
 

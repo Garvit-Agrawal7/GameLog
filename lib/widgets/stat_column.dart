@@ -28,31 +28,36 @@ class StatColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: iconColor, size: 26),
-        const SizedBox(height: 8),
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: value.toDouble()),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (context, animatedValue, child) {
-            return Text(
-              _formatValue(animatedValue),
-              style: AppTextStyles.title.copyWith(fontSize: 26),
-            );
-          },
-        ),
-        Text(label1, style: AppTextStyles.caption),
-        Text(
-          label2,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textSecondary,
+    return SizedBox(
+      width: 62,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: iconColor, size: 26),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: value.toDouble()),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, child) {
+              return Text(
+                _formatValue(animatedValue),
+                style: AppTextStyles.title.copyWith(fontSize: 26),
+                textAlign: TextAlign.center,
+              );
+            },
           ),
-        ),
-      ],
+          Text(label1, style: AppTextStyles.caption,
+              textAlign: TextAlign.center),
+          Text(
+            label2,
+            style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
-

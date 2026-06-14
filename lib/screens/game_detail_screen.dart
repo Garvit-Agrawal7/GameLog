@@ -65,14 +65,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
           lastUpdated: gameModel.lastUpdated,
         );
       }
-    } catch (e) {
-      // If DB access fails for any reason, fall back to the enriched data.
-      // We avoid failing the whole future because DB issues shouldn't block viewing details.
-      // Debug prints are helpful while developing.
-      // ignore: avoid_print
-      print('DEBUG: error reading DB in GameDetailScreen: $e');
-    }
-
+    } catch (e) {}
     return enriched;
   }
 

@@ -49,15 +49,13 @@ class IgdbService {
 
   Future<List<GameModal>> searchGames(String query, {int limit = 10}) async {
     final trimmedQuery = query.trim();
-    if (trimmedQuery.isEmpty) {
-      return const [];
-    }
+    if (trimmedQuery.isEmpty) return const [];
 
     try {
       final token = await _getAccessToken();
-      const requestUrl = 'https://api.igdb.com/v4/search';
+      print(token);
       final response = await _dio.post(
-        requestUrl,
+        'https://api.igdb.com/v4/games',
         data: _buildSearch(trimmedQuery, limit),
         options: Options(
           headers: {
@@ -71,18 +69,13 @@ class IgdbService {
       if (response.data is! List || (response.data as List).isEmpty) {
         return const [];
       }
-
-      final results = (response.data as List).whereType<Map<String, dynamic>>().toList();
-      final gameIds = _readSearchGameIds(results);
-      if (gameIds.isEmpty) {
-        return results.map(_searchResultToGame).toList();
-      }
-
-      return _fetchGamesByIds(gameIds);
+      return await Future.wait(
+        (response.data as List)
+            .whereType<Map<String, dynamic>>()
+            .map(_payloadToGameModal),
+      );
     } on DioException catch (e) {
-      if (e.response?.statusCode == 429) {
-        throw IgdbRateLimitException('Slow Down bruh');
-      }
+      if (e.response?.statusCode == 429) throw IgdbRateLimitException('Slow Down bruh');
       rethrow;
     }
   }
@@ -370,84 +363,11 @@ class IgdbService {
   }
 
   String _buildSearch(String query, int limit) {
-    final escapedQuery = query.replaceAll('"', '\\"');
-    return 'search "$escapedQuery"; '
-        'fields alternative_name,description,game,name,published_at; '
-        'where game != null; '
+    final newQuery = query.replaceAll('"', '\\"');
+    return 'search "$newQuery"; '
+        'fields name,cover.image_id,genres.name,first_release_date; '
+        'where game_type = (0, 8, 9); '
         'limit $limit;';
-  }
-
-  List<int> _readSearchGameIds(List<Map<String, dynamic>> results) {
-    final ids = <int>[];
-    for (final result in results) {
-      final game = result['game'];
-      final id = game is int
-          ? game
-          : game is Map<String, dynamic>
-              ? game['id']
-              : null;
-      if (id is int && !ids.contains(id)) {
-        ids.add(id);
-      }
-    }
-    return ids;
-  }
-
-  GameModal _searchResultToGame(Map<String, dynamic> data) {
-    final id = data['game'] is int
-        ? data['game'] as int
-        : data['id'] is int
-            ? data['id'] as int
-            : data.hashCode;
-    final publishedAt = data['published_at'];
-    return GameModal(
-      id: id,
-      title: data['name'] as String? ?? data['alternative_name'] as String? ?? 'Unknown Game',
-      coverUrl: 'https://picsum.photos/seed/igdb-$id/800/1200',
-      genres: const [],
-      summary: data['description'] as String? ?? '',
-      rating: 0,
-      hoursPlayed: 0,
-      year: publishedAt is int
-          ? DateTime.fromMillisecondsSinceEpoch(publishedAt * 1000).year
-          : DateTime.now().year,
-      lastUpdated: '',
-    );
-  }
-
-  Future<List<GameModal>> _fetchGamesByIds(List<int> ids) async {
-    final token = await _getAccessToken();
-    const requestUrl = 'https://api.igdb.com/v4/games';
-    final response = await _dio.post(
-      requestUrl,
-      data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
-          'where id = (${ids.join(',')}); '
-          'limit ${ids.length};',
-      options: Options(
-        headers: {
-          'Client-ID': _clientId,
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ),
-    );
-
-    if (response.data is! List || (response.data as List).isEmpty) {
-      return const [];
-    }
-
-    final gamesById = <int, GameModal>{};
-    for (final item in (response.data as List).whereType<Map<String, dynamic>>()) {
-      final itemId = item['id'];
-      if (itemId is int) {
-        gamesById[itemId] = await _payloadToGameModal(item);
-      }
-    }
-
-    return [
-      for (final id in ids)
-        if (gamesById[id] != null) gamesById[id]!,
-    ];
   }
 
   Future<GameModal> _payloadToGameModal(Map<String, dynamic> data) async {

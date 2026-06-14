@@ -53,7 +53,6 @@ class IgdbService {
 
     try {
       final token = await _getAccessToken();
-      print(token);
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
         data: _buildSearch(trimmedQuery, limit),

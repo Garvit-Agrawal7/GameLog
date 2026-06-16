@@ -345,8 +345,9 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
 Future<void> showStatusSelectionSheet(
     BuildContext context,
     GameModal game,
-    WidgetRef ref,
-    ) {
+    WidgetRef ref, {
+    int? timeToBeatHours,
+    }) {
   String selectedStatus = 'playing';
   int? userRatingNumber;
 
@@ -460,9 +461,12 @@ Future<void> showStatusSelectionSheet(
                       onTap: () async {
                         final int? passedRating =
                         selectedStatus == 'completed' ? userRatingNumber : null;
+                        final gameToAdd = timeToBeatHours != null
+                            ? game.copyWith(timeToBeatHours: timeToBeatHours)
+                            : game;
                         await ref
                             .read(gameLibraryProvider.notifier)
-                            .addToLibrary(game, status: selectedStatus, userRating: passedRating);
+                            .addToLibrary(gameToAdd, status: selectedStatus, userRating: passedRating);
                         Navigator.of(sheetContext).pop();
                         Navigator.of(context).pop();
                       },

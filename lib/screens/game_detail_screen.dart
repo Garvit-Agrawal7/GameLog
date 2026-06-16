@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
@@ -222,11 +222,11 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                    if (game.status == null) ...[
                      GradientButton(
                        label: 'Add to Library',
-                       onTap: () => showStatusSelectionSheet(context, game, ref),
+                       onTap: () => showStatusSelectionSheet(context, game, ref, timeToBeatHours: timeToBeatHours),
                      ),
                    ] else ...[
                      GestureDetector(
-                       onTap: () => showStatusSelectionSheet(context, game, ref),
+                       onTap: () => showStatusSelectionSheet(context, game, ref, timeToBeatHours: timeToBeatHours),
                        child: Container(
                          decoration: BoxDecoration(
                            color: AppColors.bg1,
@@ -283,3 +283,5 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     );
   }
 }
+
+

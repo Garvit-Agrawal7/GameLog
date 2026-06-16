@@ -65,7 +65,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
           lastUpdated: gameModel.lastUpdated,
         );
       }
-    } catch (e) {}
+    } catch (e, st) {
+      // Log unexpected errors while attempting to read local DB - proceed with enriched data
+      debugPrint('Error reading local game entry: $e\n$st');
+    }
     return enriched;
   }
 
@@ -240,10 +243,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                                  color: AppColors.bg2,
                                  borderRadius: BorderRadius.circular(20),
                                ),
-                               child: Text(
-                                 game.status == null ? '' : game.status![0].toUpperCase() + game.status!.substring(1),
-                                 style: AppTextStyles.label.copyWith(color: AppColors.accentPurple),
-                               ),
+                                child: Text(
+                                  game.status![0].toUpperCase() + game.status!.substring(1),
+                                  style: AppTextStyles.label.copyWith(color: AppColors.accentPurple),
+                                ),
                              ),
                            ],
                          ),

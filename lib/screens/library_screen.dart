@@ -143,12 +143,12 @@ class _LibraryGrid extends StatelessWidget {
         : games.where((game) => game.status == status && game.inLibrary).toList();
 
     if (filteredGames.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.sports_esports_outlined, size: 48, color: AppColors.textMuted),
-            SizedBox(height: 12),
+            const Icon(Icons.sports_esports_outlined, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
             Text(
               'No games here yet.',
               style: TextStyle(color: AppColors.textMuted, fontSize: 15),
@@ -219,7 +219,7 @@ class _LibraryGameCard extends ConsumerWidget {
                         style: AppTextStyles.title.copyWith(fontSize: 16),
                       ),
                     ),
-                    Row(children: [_StatusPill(status: game.status!)]),
+                    if (game.status != null) Row(children: [_StatusPill(status: game.status!)]),
                     if (game.genres.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10.0, left: 4.0),

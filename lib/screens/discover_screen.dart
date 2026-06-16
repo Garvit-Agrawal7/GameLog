@@ -3,26 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
 import '../igdb_service.dart';
-import 'package:my_game_list/screens/game_detail_screen.dart' as detail;
+import 'game_detail_screen.dart' as detail;
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
-
-const List<String> _discoverSeedTitles = [
-  'Elden Ring',
-  'The Witcher 3: Wild Hunt',
-  'God of War Ragnarok',
-  'Red Dead Redemption 2',
-  'Cyberpunk 2077',
-  'Baldur''s Gate 3',
-  'Hollow Knight',
-  'Black Myth: Wukong',
-  'Hades',
-  'Disco Elysium',
-  'Horizon Zero Dawn',
-  'Alan Wake 2',
-];
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key, this.service});
@@ -34,7 +19,8 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
-  late final Future<List<GameModal>> _catalogFuture;
+  late final Future<List<GameModal>> _trendingFuture;
+  late final Future<List<GameModal>> _upcomingFuture;
   Future<List<GameModal>>? _similarGamesFuture;
   int? _lastCompletedGameId;
   String? _lastCompletedGameTitle;
@@ -44,25 +30,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    _catalogFuture = _service.enrichGames(
-      _discoverSeedTitles
-          .asMap()
-          .entries
-          .map(
-            (entry) => GameModal(
-              id: entry.key + 1,
-              title: entry.value,
-              coverUrl: '',
-              genres: const [],
-              summary: '',
-              rating: 0,
-              hoursPlayed: 0,
-              year: 0,
-              lastUpdated: '',
-            ),
-          )
-          .toList(),
-    );
+    _trendingFuture = _service
+      .fetchTrendingGames()
+      .catchError((_) => <GameModal>[]);
+    _upcomingFuture = _service
+      .fetchUpcomingGames()
+      .catchError((_) => <GameModal>[]);
   }
 
   void _syncSimilarGames(List<GameModal> recentlyCompleted) {
@@ -77,7 +50,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     if (_lastCompletedGameId != latest.id) {
       _lastCompletedGameId = latest.id;
       _lastCompletedGameTitle = latest.title;
-      _similarGamesFuture = _service.fetchSimilarGames(latest.id);
+      _similarGamesFuture = _service
+        .fetchSimilarGames(latest.id)
+        .catchError((_) => <GameModal>[]);
     }
   }
 
@@ -85,111 +60,90 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   Widget build(BuildContext context) {
     final recentlyCompleted = ref.watch(recentlyCompletedProvider);
     final libraryGames = ref.watch(libraryGamesProvider);
+    final libraryIds = libraryGames.map((g) => g.id).toSet();
+
     _syncSimilarGames(recentlyCompleted);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg0,
-      appBar: AppBar(title: const Text('Explore')),
-      body: FutureBuilder<List<GameModal>>(
-        future: _catalogFuture,
-        builder: (context, catalogSnapshot) {
-          if (catalogSnapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.accentPurple),
-            );
-          }
-
-          if (catalogSnapshot.hasError) {
-            final displayMsg = catalogSnapshot.error is IgdbRateLimitException
-                ? (catalogSnapshot.error as IgdbRateLimitException).message
-                : 'Error loading games';
-            return Center(
-              child: Text(
-                displayMsg,
-                style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+    return FutureBuilder(
+      future: Future.wait([
+        _trendingFuture,
+        _upcomingFuture,
+        if (_similarGamesFuture != null) _similarGamesFuture!,
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            backgroundColor: AppColors.bg0,
+            body: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.accentPurple,
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          final catalogGames = catalogSnapshot.data ?? const <GameModal>[];
-          final trending = catalogGames.where((game) => game.rating >= 90).take(5).toList();
-          final hiddenGems = _gamesForTitles(catalogGames, const [
-            'Disco Elysium',
-            'Alan Wake 2',
-            'Hollow Knight',
-            'Hades',
-            'Horizon Zero Dawn',
-          ]);
-          final topRpg = catalogGames
-              .where((game) => game.genres.any((genre) => genre.toLowerCase().contains('rpg')))
-              .take(5)
-              .toList();
-
-          return SingleChildScrollView(
+        return Scaffold(
+          backgroundColor: AppColors.bg0,
+          appBar: AppBar(title: const Text('Explore')),
+          body: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (recentlyCompleted.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      'No completed games yet',
-                      style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
-                    ),
-                  )
-                else
+                if (recentlyCompleted.isNotEmpty)
                   FutureBuilder<List<GameModal>>(
                     future: _similarGamesFuture ?? Future.value(const []),
                     builder: (context, similarSnapshot) {
-                      if (similarSnapshot.connectionState != ConnectionState.done) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(
-                            child: CircularProgressIndicator(color: AppColors.accentPurple),
-                          ),
-                        );
-                      }
+                      final sourceTitle =
+                          _lastCompletedGameTitle ??
+                              'your last completed game';
 
-                      final similarGames = similarSnapshot.data ?? const <GameModal>[];
-                      final libraryIds = libraryGames.map((game) => game.id).toSet();
-                      final filteredSimilarGames = similarGames
-                          .where((game) => !libraryIds.contains(game.id))
+                      final games = (similarSnapshot.data ?? [])
+                          .where((g) => !libraryIds.contains(g.id))
                           .toList();
-                      final sourceTitle = _lastCompletedGameTitle ?? 'your last completed game';
 
                       return _HorizontalGameSection(
                         title: 'Because you liked "$sourceTitle"',
-                        games: filteredSimilarGames.take(10).toList(),
+                        games: games,
                         rightPadding: 40,
                       );
                     },
                   ),
-                _HorizontalGameSection(
-                  title: 'Trending Now',
-                  games: trending,
+                FutureBuilder<List<GameModal>>(
+                  future: _trendingFuture,
+                  builder: (context, trendingSnapshot) {
+                    final trendingGames =
+                    (trendingSnapshot.data ?? [])
+                        .where((g) => !libraryIds.contains(g.id))
+                        .toList();
+
+                    return _HorizontalGameSection(
+                      title: 'Trending This Year',
+                      games: trendingGames,
+                    );
+                  },
                 ),
-                _HorizontalGameSection(
-                  title: 'Hidden Gems 💎',
-                  games: hiddenGems,
-                  showBadge: true,
-                ),
-                _HorizontalGameSection(
-                  title: 'Top in RPG',
-                  games: topRpg,
+                FutureBuilder<List<GameModal>>(
+                  future: _upcomingFuture,
+                  builder: (context, upcomingSnapshot) {
+                    final upcomingGames =
+                    (upcomingSnapshot.data ?? [])
+                        .where((g) => !libraryIds.contains(g.id))
+                        .toList();
+
+                    return _HorizontalGameSection(
+                      title: 'Upcoming Releases',
+                      games: upcomingGames,
+                      showRating: false,
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
-  }
-
-  List<GameModal> _gamesForTitles(List<GameModal> games, List<String> titles) {
-    return [
-      for (final title in titles) ...games.where((game) => game.title == title),
-    ];
   }
 }
 
@@ -197,17 +151,19 @@ class _HorizontalGameSection extends StatelessWidget {
   const _HorizontalGameSection({
     required this.title,
     required this.games,
-    this.showBadge = false,
     this.rightPadding = 20,
+    this.showRating = true,
   });
 
   final String title;
   final List<GameModal> games;
-  final bool showBadge;
   final double rightPadding;
+  final bool showRating;
 
   @override
   Widget build(BuildContext context) {
+    if (games.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Column(
@@ -225,7 +181,7 @@ class _HorizontalGameSection extends StatelessWidget {
               itemCount: games.length,
               padding: const EdgeInsets.only(left: 20),
               itemBuilder: (context, index) {
-                return _DiscoverGameCard(game: games[index], showBadge: showBadge)
+                return _DiscoverGameCard(game: games[index], showRating: showRating)
                     .paddingOnly(right: 12);
               },
             ),
@@ -253,10 +209,10 @@ class _DiscoverSectionHeader extends StatelessWidget {
 }
 
 class _DiscoverGameCard extends StatelessWidget {
-  const _DiscoverGameCard({required this.game, this.showBadge = false});
+  const _DiscoverGameCard({required this.game, this.showRating = true});
 
   final GameModal game;
-  final bool showBadge;
+  final bool showRating;
 
   @override
   Widget build(BuildContext context) {
@@ -288,16 +244,17 @@ class _DiscoverGameCard extends StatelessWidget {
               style: AppTextStyles.label.copyWith(color: AppColors.textPrimary),
             ),
             const SizedBox(height: 2),
-            Row(
-              children: [
-                const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
-                const SizedBox(width: 3),
-                Text(
-                  (game.rating / 10).toStringAsFixed(2),
-                  style: AppTextStyles.caption,
-                ),
-              ],
-            ),
+            if (showRating)
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+                  const SizedBox(width: 3),
+                  Text(
+                    (game.rating / 10).toStringAsFixed(2),
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -313,5 +270,3 @@ extension on Widget {
     );
   }
 }
-
-

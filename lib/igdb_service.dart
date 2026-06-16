@@ -82,10 +82,22 @@ class IgdbService {
   Future<List<GameModal>> fetchSimilarGames(int gameId, {int limit = 10}) async {
     try {
       final token = await _getAccessToken();
-      const requestUrl = 'https://api.igdb.com/v4/games';
+
       final response = await _dio.post(
-        requestUrl,
-        data: 'fields similar_games; where id = $gameId; limit 1;',
+        'https://api.igdb.com/v4/games',
+        data: '''
+          fields
+            similar_games.name,
+            similar_games.summary,
+            similar_games.cover.image_id,
+            similar_games.genres.name,
+            similar_games.first_release_date,
+            similar_games.rating,
+            similar_games.rating_count;
+  
+          where id = $gameId;
+          limit 1;
+        ''',
         options: Options(
           headers: {
             'Client-ID': _clientId,
@@ -99,53 +111,33 @@ class IgdbService {
         return const [];
       }
 
-      final item = (response.data as List).firstWhere(
-            (e) => e is Map<String, dynamic>,
-        orElse: () => null,
-      ) as Map<String, dynamic>?;
+      final game =
+        (response.data as List)
+          .whereType<Map<String, dynamic>>()
+          .firstOrNull;
 
-      final similarGames = item?['similar_games'];
-      final ids = <int>[];
-      if (similarGames is List) {
-        for (final entry in similarGames) {
-          if (entry is int && !ids.contains(entry)) {
-            ids.add(entry);
-          } else if (entry is Map<String, dynamic> && entry['id'] is int) {
-            final id = entry['id'] as int;
-            if (!ids.contains(id)) {
-              ids.add(id);
-            }
-          }
-          if (ids.length >= limit) break;
-        }
-      }
+      if (game == null) return const [];
 
-      if (ids.isEmpty) return const [];
+      final similarGames =
+        (game['similar_games'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .where(
+            (g) =>
+            g['rating'] != null &&
+            g['rating_count'] != null,
+          )
+          .toList() ??
+          [];
 
-      final token2 = await _getAccessToken();
-      final gamesResponse = await _dio.post(
-        requestUrl,
-        data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
-            'where id = (${ids.join(',')}) & rating != null; '
-            'sort rating desc; '
-            'limit ${ids.length};',
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $token2',
-            'Accept': 'application/json',
-          },
-        ),
+      final rankedGames = _calculateRatingOrder(
+        similarGames,
+        minimumVotes: 50,
       );
 
-      if (gamesResponse.data is! List || (gamesResponse.data as List).isEmpty) {
-        return const [];
-      }
-
-      return await Future.wait(
-        (gamesResponse.data as List)
-            .whereType<Map<String, dynamic>>()
-            .map(_payloadToGameModal),
+      return Future.wait(
+        rankedGames
+          .take(limit)
+          .map(_payloadToGameModal),
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
@@ -153,6 +145,53 @@ class IgdbService {
       }
       rethrow;
     }
+  }
+
+  Future<List<GameModal>> fetchTrendingGames({int limit = 10}) async {
+    final yearStart = DateTime(DateTime.now().year).millisecondsSinceEpoch ~/ 1000;
+    final token = await _getAccessToken();
+    final response = await _dio.post(
+      'https://api.igdb.com/v4/games',
+      data: 'fields name,cover.image_id,genres.name,first_release_date,rating; '
+        'where first_release_date > $yearStart & rating != null & game_type = (0,8,9); '
+        'sort rating_count desc; '
+        'limit $limit;',
+      options: Options(headers: {
+        'Client-ID': _clientId,
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      }),
+    );
+
+    if (response.data is! List || (response.data as List).isEmpty) return const [];
+
+    return await Future.wait(
+      (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
+    );
+  }
+
+  Future<List<GameModal>> fetchUpcomingGames({int limit = 10}) async {
+    final yearEnd = DateTime.now().add(Duration(days: 365)).millisecondsSinceEpoch ~/ 1000;
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final token = await _getAccessToken();
+    final response = await _dio.post(
+      'https://api.igdb.com/v4/games',
+      data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
+          'where first_release_date > $now & first_release_date < $yearEnd & hypes != null & game_type = 0; '
+          'sort hypes desc; '
+          'limit $limit;',
+      options: Options(headers: {
+        'Client-ID': _clientId,
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      }),
+    );
+
+    if (response.data is! List || (response.data as List).isEmpty) return const [];
+
+    return await Future.wait(
+      (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
+    );
   }
 
   Future<GameModal> _fetchGameByTitle(GameModal seed) async {
@@ -414,6 +453,33 @@ class IgdbService {
     return bestScore >= 60 ? bestMatch : null;
   }
 
+  List<Map<String, dynamic>> _calculateRatingOrder(
+      List<Map<String, dynamic>> games, {
+        int minimumVotes = 100,
+      }) {
+    if (games.isEmpty) return games;
+
+    final globalAverage = games.fold<double>(0, (sum, g) => sum + ((g['rating'] as num?)?.toDouble() ?? 0),) / games.length;
+
+    final scored = games.map((game) {
+      final rating = (game['rating'] as num).toDouble();
+      final votes = (game['rating_count'] as num).toInt();
+
+      final weightedScore =
+          ((votes / (votes + minimumVotes)) * rating) +
+              ((minimumVotes / (votes + minimumVotes)) * globalAverage);
+
+      return (
+      game: game,
+      score: weightedScore,
+      );
+    }).toList();
+
+    scored.sort((a, b) => b.score.compareTo(a.score));
+
+    return scored.map((e) => e.game).toList();
+  }
+
   int _scoreTitleMatch(String target, String candidate, Object? releaseDate) {
     if (candidate == target) {
       return 1000;
@@ -558,7 +624,6 @@ class IgdbService {
       if (hastily is num) {
         return (hastily.toDouble() / 3600).round();
       }
-
       return null;
     } catch (_) {
       return null;

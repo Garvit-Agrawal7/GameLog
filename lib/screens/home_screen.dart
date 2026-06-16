@@ -90,7 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           }
 
           final games = snapshot.data ?? [];
-          final recommendedGame = _findByTitle(games, 'Horizon Zero Dawn') ?? games.firstOrNull;
+          final recommendedGame = _findByTitle(games, 'Horizon Zero Dawn') ?? (games.isNotEmpty ? games.first : null);
 
           if (recommendedGame == null) {
             return const Center(
@@ -106,35 +106,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello, PlayerOne!',
-                              style: AppTextStyles.caption.copyWith(fontSize: 16),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.86,
-                              child: RichText(
-                                text: TextSpan(
-                                  style: AppTextStyles.display.copyWith(height: 1.18),
-                                  children: const [
-                                    TextSpan(text: 'What game will you\nplay '),
-                                    TextSpan(
-                                      text: 'next',
-                                      style: TextStyle(color: AppColors.accentPurple),
-                                    ),
-                                    TextSpan(text: '?'),
-                                  ],
+                        Text(
+                          'Hello, PlayerOne!',
+                          style: AppTextStyles.caption.copyWith(fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.86,
+                          child: RichText(
+                            text: TextSpan(
+                              style: AppTextStyles.display.copyWith(height: 1.18),
+                              children: const [
+                                TextSpan(text: 'What game will you\nplay '),
+                                TextSpan(
+                                  text: 'next',
+                                  style: TextStyle(color: AppColors.accentPurple),
                                 ),
-                              ),
+                                TextSpan(text: '?'),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -331,4 +325,3 @@ class _RecommendationCard extends StatelessWidget {
     );
   }
 }
-

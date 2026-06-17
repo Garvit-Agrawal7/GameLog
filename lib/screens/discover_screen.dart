@@ -136,6 +136,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   future: _trendingFuture,
                   builder: (context, trendingSnapshot) {
                     final trendingGames = (trendingSnapshot.data ?? [])
+                        .where((g) => !libraryIds.contains(g.id))
                         .toList();
 
                     return _HorizontalGameSection(

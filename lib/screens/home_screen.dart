@@ -13,7 +13,7 @@ import '../widgets/genre_chip.dart';
 import '../widgets/section_header.dart';
 import '../widgets/stat_column.dart';
 import 'game_detail_screen.dart';
-import 'add_game_modal.dart';
+import 'search_screen.dart';
 
 const List<GameModal> _homeSeedGames = [
   GameModal(
@@ -134,7 +134,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 28),
                     GestureDetector(
-                      onTap: () => showAddGameModal(context),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SearchScreen()),
+                        );
+                      },
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppColors.bg2.withValues(alpha: 0.65),

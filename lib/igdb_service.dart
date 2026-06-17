@@ -202,7 +202,7 @@ class IgdbService {
       final token = await _getAccessToken();
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
-        data: 'fields name,cover.image_id,genres.name,first_release_date,rating,rating_count; '
+        data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
             'where genres.name = "${genre.replaceAll('"', '\\"')}" '
             '& rating != null & rating_count != null & game_type = (0,8,9); '
             'sort rating_count desc; '

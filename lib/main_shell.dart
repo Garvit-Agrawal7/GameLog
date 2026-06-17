@@ -14,9 +14,26 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pages = [
+      HomeScreen(
+        onViewCompletedGames: _showCompletedGames,
+      ),
+      LibraryScreen(
+        initialTabIndex: _libraryInitialTabIndex,
+        animateToInitialTab: _animateLibraryTab,
+      ),
+      const DiscoverScreen(),
+    ];
+  }
+
   int _selectedIndex = 0;
   int _libraryInitialTabIndex = 0;
-  int _libraryViewRequest = 0;
   bool _animateLibraryTab = false;
 
   void _onNavTap(int index) {
@@ -34,7 +51,6 @@ class _MainShellState extends State<MainShell> {
       _selectedIndex = 1;
       _libraryInitialTabIndex = 2;
       _animateLibraryTab = true;
-      _libraryViewRequest++;
     });
   }
 
@@ -75,39 +91,30 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      HomeScreen(onViewCompletedGames: _showCompletedGames),
-      LibraryScreen(
-        key: ValueKey('library-$_libraryInitialTabIndex-$_libraryViewRequest'),
-        initialTabIndex: _libraryInitialTabIndex,
-        animateToInitialTab: _animateLibraryTab,
-      ),
-      const DiscoverScreen(),
-    ];
+    final pages = _pages;
 
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 280),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          final slideAnimation = Tween<Offset>(
-            begin: const Offset(0.04, 0),
-            end: Offset.zero,
-          ).animate(animation);
-
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: slideAnimation,
-              child: child,
+      body: Stack(
+        children: List.generate(pages.length, (index) {
+          final isSelected = index == _selectedIndex;
+          return AnimatedSlide(
+            duration: const Duration(milliseconds: 280),
+            curve: isSelected ? Curves.easeOutSine : Curves.easeInSine,
+            offset: isSelected ? Offset.zero : const Offset(0.04, 0),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 280),
+              curve: isSelected ? Curves.easeOutSine : Curves.easeInSine,
+              opacity: isSelected ? 1.0 : 0.0,
+              child: IgnorePointer(
+                ignoring: !isSelected,
+                child: TickerMode(
+                  enabled: isSelected,
+                  child: pages[index],
+                ),
+              ),
             ),
           );
-        },
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: pages[_selectedIndex],
-        ),
+        }),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddGameModal(context),

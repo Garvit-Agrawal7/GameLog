@@ -151,10 +151,10 @@ class IgdbService {
     final token = await _getAccessToken();
     final response = await _dio.post(
       'https://api.igdb.com/v4/games',
-      data: 'fields name,cover.image_id,genres.name,first_release_date,rating; '
-        'where first_release_date > $yearStart & rating != null & game_type = (0,8,9); '
-        'sort rating_count desc; '
-        'limit $limit;',
+      data: 'fields name,cover.image_id,genres.name,first_release_date,rating,rating_count; '
+          'where first_release_date > $yearStart & rating != null & rating_count != null & game_type = (0,8,9); '
+          'sort rating_count desc; '
+          'limit ${limit * 3};',
       options: Options(headers: {
         'Client-ID': _clientId,
         'Authorization': 'Bearer $token',
@@ -164,8 +164,12 @@ class IgdbService {
 
     if (response.data is! List || (response.data as List).isEmpty) return const [];
 
+    final games = (response.data as List).whereType<Map<String, dynamic>>().toList();
+
+    final rankedGames = _calculateRatingOrder(games);
+
     return await Future.wait(
-      (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
+      rankedGames.take(limit).map(_payloadToGameModal),
     );
   }
 
@@ -198,10 +202,11 @@ class IgdbService {
       final token = await _getAccessToken();
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
-        data: 'fields name,cover.image_id,genres.name,first_release_date,rating; '
-            'where genres.name = "${genre.replaceAll('"', '\\"')}" & rating != null & game_type = (0,8,9); '
+        data: 'fields name,cover.image_id,genres.name,first_release_date,rating,rating_count; '
+            'where genres.name = "${genre.replaceAll('"', '\\"')}" '
+            '& rating != null & rating_count != null & game_type = (0,8,9); '
             'sort rating_count desc; '
-            'limit $limit;',
+            'limit ${limit * 3};',
         options: Options(headers: {
           'Client-ID': _clientId,
           'Authorization': 'Bearer $token',
@@ -211,8 +216,12 @@ class IgdbService {
 
       if (response.data is! List || (response.data as List).isEmpty) return const [];
 
+      final games = (response.data as List).whereType<Map<String, dynamic>>().toList();
+
+      final rankedGames = _calculateRatingOrder(games, minimumVotes: 50);
+
       return await Future.wait(
-        (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
+        rankedGames.take(limit).map(_payloadToGameModal),
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {

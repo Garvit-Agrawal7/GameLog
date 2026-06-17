@@ -154,7 +154,7 @@ class IgdbService {
       data: 'fields name,cover.image_id,genres.name,first_release_date,rating,rating_count; '
           'where first_release_date > $yearStart & rating != null & rating_count != null & game_type = (0,8,9); '
           'sort rating_count desc; '
-          'limit ${limit * 3};',
+          'limit $limit;',
       options: Options(headers: {
         'Client-ID': _clientId,
         'Authorization': 'Bearer $token',
@@ -206,7 +206,7 @@ class IgdbService {
             'where genres.name = "${genre.replaceAll('"', '\\"')}" '
             '& rating != null & rating_count != null & game_type = (0,8,9); '
             'sort rating_count desc; '
-            'limit ${limit * 3};',
+            'limit $limit;',
         options: Options(headers: {
           'Client-ID': _clientId,
           'Authorization': 'Bearer $token',

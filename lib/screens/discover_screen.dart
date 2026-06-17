@@ -62,18 +62,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final recentlyCompleted = ref.watch(recentlyCompletedProvider);
     final libraryGames = ref.watch(libraryGamesProvider);
     final libraryIds = libraryGames.map((g) => g.id).toSet();
-
-    final topGenreAsync = ref.watch(topGenreProvider);
-    String? topGenre;
-    topGenreAsync.whenData((genre) {
-      topGenre = genre;
-    });
+    final topGenre = ref.watch(topGenreProvider);
 
     if (topGenre != null && _topGenreFuture == null) {
-      _topGenreFuture = _service
-          .fetchByGenre(topGenre!, limit: 50)
-          .catchError((_) => <GameModal>[]);
+      _topGenreFuture = _service.fetchByGenre(topGenre, limit: 50).catchError((_) => <GameModal>[]);
     }
+
+    ref.listen(libraryGamesProvider, (previous, next) {
+      if (_topGenreFuture == null) {
+        final genre = ref.read(topGenreProvider);
+        if (genre != null) {
+          setState(() {
+            _topGenreFuture = _service.fetchByGenre(genre, limit: 50).catchError((_) => <GameModal>[]);
+          });
+        }
+      }
+    });
 
     _syncSimilarGames(recentlyCompleted);
 

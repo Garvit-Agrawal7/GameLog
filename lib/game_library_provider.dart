@@ -144,8 +144,19 @@ final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
 });
 
 // Provider to get top genre from the database
-final topGenreProvider = FutureProvider<String?>((ref) async {
-  final database = AppDatabase();
-  await database.init();
-  return database.gamesDao.getTopGenre();
+final topGenreProvider = Provider<String?>((ref) {
+  final libraryGames = ref.watch(libraryGamesProvider);
+  if (libraryGames.isEmpty) return null;
+
+  final genreCount = <String, int>{};
+  for (final game in libraryGames) {
+    for (final genre in game.genres) {
+      genreCount[genre] = (genreCount[genre] ?? 0) + 1;
+    }
+  }
+
+  final sorted = genreCount.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  return sorted.isEmpty ? null : sorted.first.key;
 });

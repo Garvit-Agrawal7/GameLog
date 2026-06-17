@@ -31,7 +31,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    _trendingFuture = _service.fetchTrendingGames().catchError(
+    _trendingFuture = _service.fetchTrendingGames(limit: 50).catchError(
       (_) => <GameModal>[],
     );
     _upcomingFuture = _service.fetchUpcomingGames().catchError(
@@ -71,7 +71,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
     if (topGenre != null && _topGenreFuture == null) {
       _topGenreFuture = _service
-          .fetchByGenre(topGenre!)
+          .fetchByGenre(topGenre!, limit: 50)
           .catchError((_) => <GameModal>[]);
     }
 
@@ -123,6 +123,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   builder: (context, topGenreSnapshot) {
                     final genreGames = (topGenreSnapshot.data ?? [])
                         .where((g) => !libraryIds.contains(g.id))
+                        .take(10)
                         .toList();
 
                     if (topGenre == null) return const SizedBox.shrink();
@@ -137,6 +138,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   builder: (context, trendingSnapshot) {
                     final trendingGames = (trendingSnapshot.data ?? [])
                         .where((g) => !libraryIds.contains(g.id))
+                        .take(10)
                         .toList();
 
                     return _HorizontalGameSection(

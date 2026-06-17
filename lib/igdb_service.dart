@@ -79,7 +79,7 @@ class IgdbService {
     }
   }
 
-  Future<List<GameModal>> fetchSimilarGames(int gameId, {int limit = 10}) async {
+  Future<List<GameModal>> fetchSimilarGames(int gameId) async {
     try {
       final token = await _getAccessToken();
 
@@ -136,7 +136,6 @@ class IgdbService {
 
       return Future.wait(
         rankedGames
-          .take(limit)
           .map(_payloadToGameModal),
       );
     } on DioException catch (e) {

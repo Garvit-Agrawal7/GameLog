@@ -142,3 +142,10 @@ final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
       .value ??
       [];
 });
+
+// Provider to get top genre from the database
+final topGenreProvider = FutureProvider<String?>((ref) async {
+  final database = AppDatabase();
+  await database.init();
+  return database.gamesDao.getTopGenre();
+});

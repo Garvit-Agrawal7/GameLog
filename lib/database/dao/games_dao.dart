@@ -255,4 +255,25 @@ class GamesDao {
   Future<void> clearAllGames() async {
     _db.execute('DELETE FROM games_table');
   }
+
+  Future<String?> getTopGenre() async {
+    final rows = _db.select('SELECT genres FROM games_table WHERE in_library = 1');
+    
+    final genreCount = <String, int>{};
+    
+    for (final row in rows) {
+      final genresJson = row['genres'] as String;
+      try {
+        final List<String> genresList = List<String>.from(jsonDecode(genresJson));
+        for (final genre in genresList) {
+          genreCount[genre] = (genreCount[genre] ?? 0) + 1;
+        }
+      } catch (_) {}
+    }
+    
+    final sortedGenres = genreCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+    
+    return sortedGenres.isEmpty ? null : sortedGenres.first.key;
+  }
 }

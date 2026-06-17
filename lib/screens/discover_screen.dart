@@ -22,6 +22,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   late final Future<List<GameModal>> _trendingFuture;
   late final Future<List<GameModal>> _upcomingFuture;
   Future<List<GameModal>>? _similarGamesFuture;
+  Future<List<GameModal>>? _topGenreFuture;
   int? _lastCompletedGameId;
   String? _lastCompletedGameTitle;
 
@@ -30,12 +31,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    _trendingFuture = _service
-      .fetchTrendingGames()
-      .catchError((_) => <GameModal>[]);
-    _upcomingFuture = _service
-      .fetchUpcomingGames()
-      .catchError((_) => <GameModal>[]);
+    _trendingFuture = _service.fetchTrendingGames().catchError(
+      (_) => <GameModal>[],
+    );
+    _upcomingFuture = _service.fetchUpcomingGames().catchError(
+      (_) => <GameModal>[],
+    );
   }
 
   void _syncSimilarGames(List<GameModal> recentlyCompleted) {
@@ -51,8 +52,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       _lastCompletedGameId = latest.id;
       _lastCompletedGameTitle = latest.title;
       _similarGamesFuture = _service
-        .fetchSimilarGames(latest.id)
-        .catchError((_) => <GameModal>[]);
+          .fetchSimilarGames(latest.id)
+          .catchError((_) => <GameModal>[]);
     }
   }
 
@@ -61,6 +62,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final recentlyCompleted = ref.watch(recentlyCompletedProvider);
     final libraryGames = ref.watch(libraryGamesProvider);
     final libraryIds = libraryGames.map((g) => g.id).toSet();
+
+    final topGenreAsync = ref.watch(topGenreProvider);
+    String? topGenre;
+    topGenreAsync.whenData((genre) {
+      topGenre = genre;
+    });
+
+    if (topGenre != null && _topGenreFuture == null) {
+      _topGenreFuture = _service
+          .fetchByGenre(topGenre!)
+          .catchError((_) => <GameModal>[]);
+    }
 
     _syncSimilarGames(recentlyCompleted);
 
@@ -75,9 +88,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           return const Scaffold(
             backgroundColor: AppColors.bg0,
             body: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.accentPurple,
-              ),
+              child: CircularProgressIndicator(color: AppColors.accentPurple),
             ),
           );
         }
@@ -94,8 +105,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                     future: _similarGamesFuture ?? Future.value(const []),
                     builder: (context, similarSnapshot) {
                       final sourceTitle =
-                          _lastCompletedGameTitle ??
-                              'your last completed game';
+                          _lastCompletedGameTitle ?? 'your last completed game';
 
                       final games = (similarSnapshot.data ?? [])
                           .where((g) => !libraryIds.contains(g.id))
@@ -109,11 +119,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                     },
                   ),
                 FutureBuilder<List<GameModal>>(
+                  future: _topGenreFuture,
+                  builder: (context, topGenreSnapshot) {
+                    final genreGames = (topGenreSnapshot.data ?? [])
+                        .where((g) => !libraryIds.contains(g.id))
+                        .toList();
+
+                    if (topGenre == null) return const SizedBox.shrink();
+                    return _HorizontalGameSection(
+                      title: 'Top in $topGenre',
+                      games: genreGames,
+                    );
+                  },
+                ),
+                FutureBuilder<List<GameModal>>(
                   future: _trendingFuture,
                   builder: (context, trendingSnapshot) {
-                    final trendingGames =
-                    (trendingSnapshot.data ?? [])
-                        .where((g) => !libraryIds.contains(g.id))
+                    final trendingGames = (trendingSnapshot.data ?? [])
                         .toList();
 
                     return _HorizontalGameSection(
@@ -125,9 +147,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 FutureBuilder<List<GameModal>>(
                   future: _upcomingFuture,
                   builder: (context, upcomingSnapshot) {
-                    final upcomingGames =
-                    (upcomingSnapshot.data ?? [])
-                        .where((g) => !libraryIds.contains(g.id))
+                    final upcomingGames = (upcomingSnapshot.data ?? [])
                         .toList();
 
                     return _HorizontalGameSection(
@@ -181,8 +201,10 @@ class _HorizontalGameSection extends StatelessWidget {
               itemCount: games.length,
               padding: const EdgeInsets.only(left: 20),
               itemBuilder: (context, index) {
-                return _DiscoverGameCard(game: games[index], showRating: showRating)
-                    .paddingOnly(right: 12);
+                return _DiscoverGameCard(
+                  game: games[index],
+                  showRating: showRating,
+                ).paddingOnly(right: 12);
               },
             ),
           ),
@@ -221,7 +243,9 @@ class _DiscoverGameCard extends StatelessWidget {
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => detail.GameDetailScreen(game: game)),
+            MaterialPageRoute(
+              builder: (_) => detail.GameDetailScreen(game: game),
+            ),
           );
         },
         child: Column(
@@ -247,7 +271,11 @@ class _DiscoverGameCard extends StatelessWidget {
             if (showRating)
               Row(
                 children: [
-                  const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+                  const Icon(
+                    Icons.star_rounded,
+                    size: 12,
+                    color: AppColors.warning,
+                  ),
                   const SizedBox(width: 3),
                   Text(
                     (game.rating / 10).toStringAsFixed(2),

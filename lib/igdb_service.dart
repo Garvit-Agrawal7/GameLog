@@ -194,6 +194,35 @@ class IgdbService {
     );
   }
 
+  Future<List<GameModal>> fetchByGenre(String genre, {int limit = 10}) async {
+    try {
+      final token = await _getAccessToken();
+      final response = await _dio.post(
+        'https://api.igdb.com/v4/games',
+        data: 'fields name,cover.image_id,genres.name,first_release_date,rating; '
+            'where genres.name = "${genre.replaceAll('"', '\\"')}" & rating != null & game_type = (0,8,9); '
+            'sort rating_count desc; '
+            'limit $limit;',
+        options: Options(headers: {
+          'Client-ID': _clientId,
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        }),
+      );
+
+      if (response.data is! List || (response.data as List).isEmpty) return const [];
+
+      return await Future.wait(
+        (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        throw IgdbRateLimitException('Slow Down bruh');
+      }
+      rethrow;
+    }
+  }
+
   Future<GameModal> _fetchGameByTitle(GameModal seed) async {
     try {
       final token = await _getAccessToken();

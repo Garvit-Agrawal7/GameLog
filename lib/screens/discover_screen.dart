@@ -118,21 +118,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       );
                     },
                   ),
-                FutureBuilder<List<GameModal>>(
-                  future: _topGenreFuture,
-                  builder: (context, topGenreSnapshot) {
-                    final genreGames = (topGenreSnapshot.data ?? [])
-                        .where((g) => !libraryIds.contains(g.id))
-                        .take(10)
-                        .toList();
+                if (recentlyCompleted.isNotEmpty)
+                  FutureBuilder<List<GameModal>>(
+                    future: _topGenreFuture,
+                    builder: (context, topGenreSnapshot) {
+                      final genreGames = (topGenreSnapshot.data ?? [])
+                          .where((g) => !libraryIds.contains(g.id))
+                          .take(10)
+                          .toList();
 
-                    if (topGenre == null) return const SizedBox.shrink();
-                    return _HorizontalGameSection(
-                      title: 'Top in $topGenre',
-                      games: genreGames,
-                    );
-                  },
-                ),
+                      if (topGenre == null) return const SizedBox.shrink();
+                      return _HorizontalGameSection(
+                        title: 'Top in $topGenre',
+                        games: genreGames,
+                      );
+                    },
+                  ),
                 FutureBuilder<List<GameModal>>(
                   future: _trendingFuture,
                   builder: (context, trendingSnapshot) {

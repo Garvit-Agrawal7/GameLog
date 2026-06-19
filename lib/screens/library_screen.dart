@@ -139,13 +139,6 @@ extension on _SortOption {
     _SortOption.status => 'Status',
     _SortOption.recency => 'Last Updated',
   };
-
-  IconData get icon => switch (this) {
-    _SortOption.alphabetical => Icons.sort_by_alpha,
-    _SortOption.score => Icons.star_rounded,
-    _SortOption.status => Icons.flag_outlined,
-    _SortOption.recency => Icons.schedule,
-  };
 }
 
 class _LibraryGrid extends StatefulWidget {
@@ -221,49 +214,57 @@ class _LibraryGridState extends State<_LibraryGrid> {
     return _SortOption.values.where((o) => o != _SortOption.status).toList();
   }
 
-  void _showSortMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.bg1,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  void _showSortMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset(0, button.size.height), ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.textMuted.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 12),
-              for (final option in _availableOptions)
-                ListTile(
-                  leading: Icon(option.icon, color: AppColors.textPrimary),
-                  title: Text(
-                    option.label,
-                    style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-                  ),
-                  trailing: option == _sortOption
-                      ? const Icon(Icons.check, color: AppColors.accentPurple)
-                      : null,
-                  onTap: () {
-                    setState(() => _sortOption = option);
-                    Navigator.of(context).pop();
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
+      Offset.zero & overlay.size,
     );
+
+    final selected = await showMenu<_SortOption>(
+      context: context,
+      position: position,
+      color: AppColors.bg1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      popUpAnimationStyle: AnimationStyle(
+        duration: const Duration(milliseconds: 180),
+        reverseDuration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutSine,
+        reverseCurve: Curves.easeInSine,
+      ),
+      items: [
+        for (final option in _availableOptions)
+          PopupMenuItem<_SortOption>(
+            value: option,
+            child: Row(
+              children: [
+                Icon(
+                  option == _sortOption
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 18,
+                  color: option == _sortOption
+                      ? AppColors.accentPurple
+                      : AppColors.textMuted,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  option.label,
+                  style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    if (selected != null) {
+      setState(() => _sortOption = selected);
+    }
   }
 
   @override
@@ -309,16 +310,20 @@ class _LibraryGridState extends State<_LibraryGrid> {
                   ),
                 ],
               ),
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => _showSortMenu(context),
-                  icon: const Icon(Icons.sort_rounded, size: 24, color: AppColors.accentPurple),
-                  tooltip: 'Sort games',
-                ),
+              Builder(
+                builder: (buttonContext) {
+                  return SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _showSortMenu(buttonContext),
+                      icon: const Icon(Icons.sort_rounded, size: 20, color: AppColors.accentPurple),
+                      tooltip: 'Sort games',
+                    ),
+                  );
+                },
               ),
             ],
           ),

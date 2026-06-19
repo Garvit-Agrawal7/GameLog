@@ -130,17 +130,145 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
   }
 }
 
-class _LibraryGrid extends StatelessWidget {
+enum _SortOption { alphabetical, score, status, recency }
+
+extension on _SortOption {
+  String get label => switch (this) {
+    _SortOption.alphabetical => 'Alphabetical',
+    _SortOption.score => 'Score',
+    _SortOption.status => 'Status',
+    _SortOption.recency => 'Last Updated',
+  };
+
+  IconData get icon => switch (this) {
+    _SortOption.alphabetical => Icons.sort_by_alpha,
+    _SortOption.score => Icons.star_rounded,
+    _SortOption.status => Icons.flag_outlined,
+    _SortOption.recency => Icons.schedule,
+  };
+}
+
+class _LibraryGrid extends StatefulWidget {
   const _LibraryGrid({required this.status, required this.games});
 
   final String status;
   final List<GameModal> games;
 
   @override
+  State<_LibraryGrid> createState() => _LibraryGridState();
+}
+
+class _LibraryGridState extends State<_LibraryGrid> {
+  _SortOption _sortOption = _SortOption.alphabetical;
+
+  List<GameModal> _filteredGames() {
+    return widget.status == 'all'
+        ? widget.games.where((g) => g.inLibrary).toList()
+        : widget.games.where((g) => g.status == widget.status && g.inLibrary).toList();
+  }
+
+  List<GameModal> _sortedGames(List<GameModal> games) {
+    final sorted = List<GameModal>.from(games);
+    switch (_sortOption) {
+      case _SortOption.recency:
+        sorted.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+        break;
+      case _SortOption.alphabetical:
+        sorted.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+      case _SortOption.score:
+        sorted.sort((a, b) {
+          final hasRatingA = a.userRating != null;
+          final hasRatingB = b.userRating != null;
+
+          if (hasRatingA != hasRatingB) {
+            return hasRatingA ? -1 : 1;
+          }
+
+          if (hasRatingA) {
+            return b.userRating!.compareTo(a.userRating!);
+          }
+
+          if (widget.status == 'all') {
+            const order = ['playing', 'completed', 'wishlist', 'dropped'];
+            final indexA = order.indexOf(a.status ?? '');
+            final indexB = order.indexOf(b.status ?? '');
+            if (indexA != indexB) {
+              return indexA.compareTo(indexB);
+            }
+            return b.rating.compareTo(a.rating);
+          }
+
+          return b.rating.compareTo(a.rating);
+        });
+        break;
+      case _SortOption.status:
+        const order = ['playing', 'completed', 'wishlist', 'dropped'];
+        sorted.sort((a, b) {
+          final indexA = order.indexOf(a.status ?? '');
+          final indexB = order.indexOf(b.status ?? '');
+          return indexA.compareTo(indexB);
+        });
+        break;
+    }
+    return sorted;
+  }
+
+  List<_SortOption> get _availableOptions {
+    if (widget.status == 'all') {
+      return _SortOption.values;
+    }
+    return _SortOption.values.where((o) => o != _SortOption.status).toList();
+  }
+
+  void _showSortMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final option in _availableOptions)
+                ListTile(
+                  leading: Icon(option.icon, color: AppColors.textPrimary),
+                  title: Text(
+                    option.label,
+                    style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+                  ),
+                  trailing: option == _sortOption
+                      ? const Icon(Icons.check, color: AppColors.accentPurple)
+                      : null,
+                  onTap: () {
+                    setState(() => _sortOption = option);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final filteredGames = status == 'all'
-        ? games.where((g) => g.inLibrary).toList()
-        : games.where((game) => game.status == status && game.inLibrary).toList();
+    final filteredGames = _filteredGames();
 
     if (filteredGames.isEmpty) {
       return Center(
@@ -158,11 +286,52 @@ class _LibraryGrid extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredGames.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _LibraryGameCard(game: filteredGames[index]),
+    final sortedGames = _sortedGames(filteredGames);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(26, 12, 26, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.gamepad_outlined, size: 18, color: AppColors.accentPurple),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${filteredGames.length} ${filteredGames.length == 1 ? 'entry' : 'entries'}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.accentPurple,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _showSortMenu(context),
+                  icon: const Icon(Icons.sort_rounded, size: 24, color: AppColors.accentPurple),
+                  tooltip: 'Sort games',
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: sortedGames.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _LibraryGameCard(game: sortedGames[index]),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -229,7 +398,7 @@ class _LibraryGameCard extends ConsumerWidget {
                 ),
               ),
             ),
-            if (game.status == 'completed')
+            if (game.userRating != null)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0, right: 4.0),
                 child: SizedBox(
@@ -245,7 +414,7 @@ class _LibraryGameCard extends ConsumerWidget {
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              '${(game.userRating != null) ? game.userRating : (game.rating / 10).round().clamp(1, 10)}',
+                              '${game.userRating}',
                               textAlign: TextAlign.left,
                               style: AppTextStyles.label.copyWith(
                                 fontSize: 15,
@@ -293,13 +462,13 @@ class _StatusPill extends StatelessWidget {
     final indicator = status == 'wishlist'
         ? Icon(Icons.favorite, size: 12, color: color)
         : Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          );
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
 
     final labelColor = status == 'wishlist' ? AppColors.textPrimary : color;
 

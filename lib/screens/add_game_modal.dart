@@ -198,24 +198,20 @@ Future<void> showStatusSelectionSheet(
                       label: 'Dropped',
                       value: 'dropped',
                     ),
-                    if (selectedStatus == 'completed') ...[
-                      const SizedBox(height: 16),
-                      Text('Your rating:', style: AppTextStyles.label),
-                      const SizedBox(height: 12),
-                      buildRatingPicker(setState),
-                    ],
+                    const SizedBox(height: 16),
+                    Text('Your rating:', style: AppTextStyles.label),
+                    const SizedBox(height: 12),
+                    buildRatingPicker(setState),
                     const SizedBox(height: 20),
                     GradientButton(
                       label: 'Add to Library',
                       onTap: () async {
-                        final int? passedRating =
-                        selectedStatus == 'completed' ? userRatingNumber : null;
                         final gameToAdd = timeToBeatHours != null
                             ? game.copyWith(timeToBeatHours: timeToBeatHours)
                             : game;
                         await ref
                             .read(gameLibraryProvider.notifier)
-                            .addToLibrary(gameToAdd, status: selectedStatus, userRating: passedRating);
+                            .addToLibrary(gameToAdd, status: selectedStatus, userRating: userRatingNumber);
                         Navigator.of(sheetContext).pop();
                         Navigator.of(context).pop();
                       },

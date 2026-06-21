@@ -68,11 +68,8 @@ class IgdbService {
       if (response.data is! List || (response.data as List).isEmpty) {
         return const [];
       }
-      return await Future.wait(
-        (response.data as List)
-            .whereType<Map<String, dynamic>>()
-            .map(_payloadToGameModal),
-      );
+      return (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal).toList();
+
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) throw IgdbRateLimitException('Slow Down bruh');
       rethrow;
@@ -134,10 +131,8 @@ class IgdbService {
         minimumVotes: 50,
       );
 
-      return Future.wait(
-        rankedGames
-          .map(_payloadToGameModal),
-      );
+      return rankedGames.map(_payloadToGameModal).toList();
+
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
         throw IgdbRateLimitException('Slow Down bruh');
@@ -151,7 +146,7 @@ class IgdbService {
     final token = await _getAccessToken();
     final response = await _dio.post(
       'https://api.igdb.com/v4/games',
-      data: 'fields name,cover.image_id,genres.name,first_release_date,rating,rating_count; '
+      data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
           'where first_release_date > $yearStart & rating != null & rating_count != null & game_type = (0,8,9); '
           'sort rating_count desc; '
           'limit $limit;',
@@ -168,9 +163,7 @@ class IgdbService {
 
     final rankedGames = _calculateRatingOrder(games);
 
-    return await Future.wait(
-      rankedGames.take(limit).map(_payloadToGameModal),
-    );
+    return rankedGames.take(limit).map(_payloadToGameModal).toList();
   }
 
   Future<List<GameModal>> fetchUpcomingGames({int limit = 10}) async {
@@ -192,9 +185,7 @@ class IgdbService {
 
     if (response.data is! List || (response.data as List).isEmpty) return const [];
 
-    return await Future.wait(
-      (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal),
-    );
+    return (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal).toList();
   }
 
   Future<List<GameModal>> fetchByGenre(String genre, {int limit = 10}) async {
@@ -217,12 +208,9 @@ class IgdbService {
       if (response.data is! List || (response.data as List).isEmpty) return const [];
 
       final games = (response.data as List).whereType<Map<String, dynamic>>().toList();
-
       final rankedGames = _calculateRatingOrder(games, minimumVotes: 50);
 
-      return await Future.wait(
-        rankedGames.take(limit).map(_payloadToGameModal),
-      );
+      return rankedGames.take(limit).map(_payloadToGameModal).toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
         throw IgdbRateLimitException('Slow Down bruh');
@@ -440,12 +428,12 @@ class IgdbService {
   String _buildSearch(String query, int limit) {
     final newQuery = query.replaceAll('"', '\\"');
     return 'search "$newQuery"; '
-        'fields name,cover.image_id,genres.name,first_release_date; '
+        'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
         'where game_type = (0, 8, 9); '
         'limit $limit;';
   }
 
-  Future<GameModal> _payloadToGameModal(Map<String, dynamic> data) async {
+  GameModal _payloadToGameModal(Map<String, dynamic> data) {
     final id = data['id'] is int ? data['id'] as int : data.hashCode;
     final coverId = _readCoverId(data);
     final genres = _readGenres(data);
@@ -463,7 +451,7 @@ class IgdbService {
       summary: summary?.isNotEmpty == true ? summary! : '',
       rating: rating ?? 0,
       hoursPlayed: 0,
-      timeToBeatHours: await fetchTimeToBeat(id),
+      timeToBeatHours: null,
       year: year ?? DateTime.now().year,
       lastUpdated: '',
     );

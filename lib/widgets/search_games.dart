@@ -105,8 +105,14 @@ class _SearchGamesWidgetState extends ConsumerState<SearchGamesWidget> {
     _onSearchChanged(query);
   }
 
-  Future<void> _openStatusSheet(GameModal game) {
-    return showStatusSelectionSheet(context, game, widget.ref);
+  Future<void> _openStatusSheet(GameModal game) async {
+    final ttb = await widget.service.fetchTimeToBeat(game.id);
+    return showStatusSelectionSheet(
+      context,
+      game,
+      widget.ref,
+      timeToBeatHours: ttb,
+    );
   }
 
   Widget _buildLoading() {

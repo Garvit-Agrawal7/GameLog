@@ -47,11 +47,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Set<int> libraryIds,
   ) async {
     final candidates = await _service.fetchByGenre(genre, limit: 40);
-    final filtered = candidates
-        .where((g) => !libraryIds.contains(g.id))
-        .toList();
+    final filtered = candidates.where((g) => !libraryIds.contains(g.id)).toList();
     if (filtered.isEmpty) return null;
-    return filtered[Random().nextInt(filtered.length)];
+
+    final picked = filtered[Random().nextInt(filtered.length)];
+    final ttb = await _service.fetchTimeToBeat(picked.id);
+    return picked.copyWith(timeToBeatHours: ttb);
   }
 
   void _loadRecommendation() {

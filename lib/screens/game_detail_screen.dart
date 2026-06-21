@@ -127,8 +127,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
         return FutureBuilder<int?>(
           future: _timeToBeatFuture,
           builder: (context, timeSnapshot) {
-            final timeToBeatHours = timeSnapshot.data ?? game.timeToBeatHours;
-            return _buildDetailScreen(context, game, timeToBeatHours);
+            final liveGame = ref.watch(gameProvider(game.id)) ?? game;
+            final timeToBeatHours = timeSnapshot.data ?? liveGame.timeToBeatHours;
+            return _buildDetailScreen(context, liveGame, timeToBeatHours);
           },
         );
       },

@@ -21,7 +21,6 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
 
   // Add a game to library with status
   Future<void> addToLibrary(GameModal game, {required String status, int? userRating}) async {
-    // Persist to database first with current timestamp
     final gameModel = _toGameModel(game);
     final updatedModel = gameModel.copyWith(
       inLibrary: true,
@@ -132,8 +131,7 @@ final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
         final completed = games
             .where((g) =>
                 g.status == 'completed' &&
-                g.inLibrary &&
-                (g.userRating ?? 0) >= 7)
+                g.inLibrary)
             .toList();
         // Sort by lastUpdated descending (most recent first)
         completed.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));

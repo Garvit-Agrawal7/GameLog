@@ -97,8 +97,8 @@ Future<void> showStatusSelectionSheet(
     WidgetRef ref, {
     int? timeToBeatHours,
     }) {
-  String selectedStatus = 'playing';
-  int? userRatingNumber;
+  String selectedStatus = game.status ?? 'playing';
+  int? userRatingNumber = game.userRating;
 
   Widget buildRatingPicker(void Function(void Function()) setState) {
     return _RatingPicker(

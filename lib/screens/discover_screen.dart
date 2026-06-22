@@ -26,7 +26,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   int? _lastCompletedGameId;
   String? _lastCompletedGameTitle;
 
-  IgdbService get _service => widget.service ?? IgdbService();
+  IgdbService get _service => widget.service ?? ref.read(igdbServiceProvider);
 
   @override
   void initState() {

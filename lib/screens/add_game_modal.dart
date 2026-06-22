@@ -33,7 +33,7 @@ class _AddGameModalState extends ConsumerState<_AddGameModal> {
   @override
   void initState() {
     super.initState();
-    _service = IgdbService();
+    _service = ref.read(igdbServiceProvider);
   }
 
   @override

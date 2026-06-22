@@ -46,7 +46,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
 
   Future<GameModal> _buildGameFuture() async {
     // Enrich the incoming game with IGDB data first
-    final enriched = (await IgdbService().enrichGames([widget.game])).first;
+    final enriched = (await ref.read(igdbServiceProvider).enrichGames([widget.game])).first;
 
     try {
       // Check the local database for a stored entry for this game id.
@@ -78,7 +78,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       return existing;
     }
 
-    return IgdbService().fetchTimeToBeat(widget.game.id);
+    return ref.read(igdbServiceProvider).fetchTimeToBeat(widget.game.id);
   }
 
   @override

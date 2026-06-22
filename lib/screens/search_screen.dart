@@ -19,7 +19,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _service = IgdbService();
+    _service = ref.read(igdbServiceProvider);
   }
 
   @override

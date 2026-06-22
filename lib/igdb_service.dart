@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'game_modal.dart';
 
@@ -14,22 +15,50 @@ class IgdbRateLimitException implements Exception {
   String toString() => message;
 }
 
+final igdbAccessTokenProvider = Provider<String>((ref) {
+  throw UnimplementedError('Token must be set via override before app starts');
+});
+
+final igdbServiceProvider = Provider<IgdbService>((ref) {
+  final token = ref.watch(igdbAccessTokenProvider);
+  return IgdbService(token: token);
+});
+
 class IgdbService {
+  static Future<String> fetchAccessToken() async {
+    final clientId = dotenv.env['CLIENT_ID']!;
+    final clientSecret = dotenv.env['CLIENT_SECRET']!;
+    final dio = Dio();
+
+    final response = await dio.post(
+      'https://id.twitch.tv/oauth2/token',
+      queryParameters: {
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'grant_type': 'client_credentials',
+      },
+      options: Options(headers: {'Accept': 'application/json'}),
+    );
+
+    final data = response.data as Map<String, dynamic>;
+    final accessToken = data['access_token'] as String?;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw StateError('IGDB access token missing');
+    }
+    return accessToken;
+  }
+
   IgdbService({
+    required String token,
     Dio? dio,
     String? clientId,
-    String? clientSecret,
   })  : _dio = dio ?? Dio(),
         _clientId = clientId ?? dotenv.env['CLIENT_ID']!,
-        _clientSecret = clientSecret ?? dotenv.env['CLIENT_SECRET']!;
+        _accessToken = token;
 
   final Dio _dio;
   final String _clientId;
-  final String _clientSecret;
-
-  String? _accessToken;
-  DateTime? _tokenExpiry;
-  Future<String>? _tokenRequest;
+  final String _accessToken;
 
   Future<List<GameModal>> enrichGames(List<GameModal> seeds) async {
     if (seeds.isEmpty) {
@@ -52,14 +81,13 @@ class IgdbService {
     if (trimmedQuery.isEmpty) return const [];
 
     try {
-      final token = await _getAccessToken();
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
         data: _buildSearch(trimmedQuery, limit),
         options: Options(
           headers: {
             'Client-ID': _clientId,
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $_accessToken',
             'Accept': 'application/json',
           },
         ),
@@ -78,8 +106,6 @@ class IgdbService {
 
   Future<List<GameModal>> fetchSimilarGames(int gameId) async {
     try {
-      final token = await _getAccessToken();
-
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
         data: '''
@@ -98,7 +124,7 @@ class IgdbService {
         options: Options(
           headers: {
             'Client-ID': _clientId,
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $_accessToken',
             'Accept': 'application/json',
           },
         ),
@@ -143,7 +169,6 @@ class IgdbService {
 
   Future<List<GameModal>> fetchTrendingGames({int limit = 10}) async {
     final yearStart = DateTime(DateTime.now().year).millisecondsSinceEpoch ~/ 1000;
-    final token = await _getAccessToken();
     final response = await _dio.post(
       'https://api.igdb.com/v4/games',
       data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
@@ -152,7 +177,7 @@ class IgdbService {
           'limit $limit;',
       options: Options(headers: {
         'Client-ID': _clientId,
-        'Authorization': 'Bearer $token',
+        'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       }),
     );
@@ -160,7 +185,6 @@ class IgdbService {
     if (response.data is! List || (response.data as List).isEmpty) return const [];
 
     final games = (response.data as List).whereType<Map<String, dynamic>>().toList();
-
     final rankedGames = _calculateRatingOrder(games);
 
     return rankedGames.take(limit).map(_payloadToGameModal).toList();
@@ -169,7 +193,6 @@ class IgdbService {
   Future<List<GameModal>> fetchUpcomingGames({int limit = 10}) async {
     final yearEnd = DateTime.now().add(Duration(days: 365)).millisecondsSinceEpoch ~/ 1000;
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final token = await _getAccessToken();
     final response = await _dio.post(
       'https://api.igdb.com/v4/games',
       data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
@@ -178,7 +201,7 @@ class IgdbService {
           'limit $limit;',
       options: Options(headers: {
         'Client-ID': _clientId,
-        'Authorization': 'Bearer $token',
+        'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       }),
     );
@@ -190,7 +213,6 @@ class IgdbService {
 
   Future<List<GameModal>> fetchByGenre(String genre, {int limit = 10}) async {
     try {
-      final token = await _getAccessToken();
       final response = await _dio.post(
         'https://api.igdb.com/v4/games',
         data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
@@ -200,7 +222,7 @@ class IgdbService {
             'limit $limit;',
         options: Options(headers: {
           'Client-ID': _clientId,
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
         }),
       );
@@ -221,7 +243,6 @@ class IgdbService {
 
   Future<GameModal> _fetchGameByTitle(GameModal seed) async {
     try {
-      final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/games';
       final response = await _dio.post(
         requestUrl,
@@ -229,7 +250,7 @@ class IgdbService {
         options: Options(
           headers: {
             'Client-ID': _clientId,
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $_accessToken',
             'Accept': 'application/json',
           },
         ),
@@ -281,7 +302,6 @@ class IgdbService {
     }
 
     try {
-      final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/multiquery';
       final response = await _dio.post(
         requestUrl,
@@ -289,7 +309,7 @@ class IgdbService {
         options: Options(
           headers: {
             'Client-ID': _clientId,
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $_accessToken',
             'Accept': 'application/json',
           },
         ),
@@ -371,51 +391,6 @@ class IgdbService {
       }
     }
     return buffer.toString();
-  }
-
-  Future<String> _getAccessToken() {
-    final currentToken = _accessToken;
-    final currentExpiry = _tokenExpiry;
-    if (currentToken != null &&
-        currentExpiry != null &&
-        DateTime.now().isBefore(currentExpiry)) {
-      return Future.value(currentToken);
-    }
-
-    final pendingRequest = _tokenRequest;
-    if (pendingRequest != null) {
-      return pendingRequest;
-    }
-
-    final request = _requestAccessToken();
-    _tokenRequest = request.whenComplete(() {
-      _tokenRequest = null;
-    });
-    return _tokenRequest!;
-  }
-
-  Future<String> _requestAccessToken() async {
-    final response = await _dio.post(
-      'https://id.twitch.tv/oauth2/token',
-      queryParameters: {
-        'client_id': _clientId,
-        'client_secret': _clientSecret,
-        'grant_type': 'client_credentials',
-      },
-      options: Options(headers: {'Accept': 'application/json'}),
-    );
-
-    final data = response.data as Map<String, dynamic>;
-    _accessToken = data['access_token'] as String?;
-    final expiresIn = data['expires_in'] as int? ?? 0;
-    final cacheSeconds = expiresIn > 30 ? expiresIn - 30 : 0;
-    _tokenExpiry = DateTime.now().add(Duration(seconds: cacheSeconds));
-
-    if (_accessToken == null || _accessToken!.isEmpty) {
-      throw StateError('IGDB access token missing');
-    }
-
-    return _accessToken!;
   }
 
   String _buildQuery(String title) {
@@ -619,7 +594,6 @@ class IgdbService {
 
   Future<int?> fetchTimeToBeat(int gameId) async {
     try {
-      final token = await _getAccessToken();
       const requestUrl = 'https://api.igdb.com/v4/game_time_to_beats';
       final response = await _dio.post(
         requestUrl,
@@ -627,7 +601,7 @@ class IgdbService {
         options: Options(
           headers: {
             'Client-ID': _clientId,
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $_accessToken',
             'Accept': 'application/json',
           },
         ),

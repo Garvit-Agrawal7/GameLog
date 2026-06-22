@@ -40,13 +40,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<GameModal?>? _recommendedFuture;
   String? _lastTopGenre;
 
-  IgdbService get _service => widget.service ?? IgdbService();
+  IgdbService get _service => widget.service ?? ref.read(igdbServiceProvider);
 
   Future<GameModal?> _fetchRecommendation(
     String genre,
     Set<int> libraryIds,
   ) async {
-    final candidates = await _service.fetchByGenre(genre, limit: 40);
+    final candidates = await _service.fetchByGenre(genre, limit: 50);
     final filtered = candidates.where((g) => !libraryIds.contains(g.id)).toList();
     if (filtered.isEmpty) return null;
 
@@ -415,7 +415,7 @@ class _RecommendationCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: game.genres
-                          .take(3)
+                          .take(2)
                           .map((genre) => GenreChip(label: genre))
                           .toList(),
                     ),

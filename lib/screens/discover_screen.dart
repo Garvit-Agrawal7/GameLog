@@ -53,7 +53,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         .fetchTrendingGames(limit: 50)
         .catchError((_) => <GameModal>[]);
     _upcomingFuture = _service.fetchUpcomingGames().catchError(
-      (_) => <GameModal>[],
+          (_) => <GameModal>[],
     );
     _topGenreFuture = _service
         .fetchByGenre('Adventure', limit: 50)
@@ -140,6 +140,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   FutureBuilder<List<GameModal>>(
                     future: _topGenreFuture,
                     builder: (context, topGenreSnapshot) {
+                      final isLoading =
+                          topGenreSnapshot.connectionState != ConnectionState.done;
                       final genreGames = (topGenreSnapshot.data ?? [])
                           .where((g) => !libraryIds.contains(g.id))
                           .take(10)
@@ -148,6 +150,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       return _HorizontalGameSection(
                         title: 'Top in ',
                         games: genreGames,
+                        isLoading: isLoading,
                         headerOverride: _GenrePickerHeader(
                           currentGenre: _selectedGenre,
                           allGenres: _allGenres,
@@ -200,6 +203,7 @@ class _HorizontalGameSection extends StatelessWidget {
     this.rightPadding = 20,
     this.showRating = true,
     this.headerOverride,
+    this.isLoading = false,
   });
 
   final String? title;
@@ -207,11 +211,11 @@ class _HorizontalGameSection extends StatelessWidget {
   final double rightPadding;
   final bool showRating;
   final Widget? headerOverride;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    if (games.isEmpty) return const SizedBox.shrink();
-
+    if (!isLoading && games.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Column(
@@ -220,13 +224,24 @@ class _HorizontalGameSection extends StatelessWidget {
           Padding(
             padding: EdgeInsets.fromLTRB(20, 0, rightPadding, 0),
             child:
-                headerOverride ??
-                _DiscoverSectionHeader(title: title!,),
+            headerOverride ??
+              _DiscoverSectionHeader(title: title!,),
           ),
           const SizedBox(height: 16),
           SizedBox(
             height: 220,
-            child: ListView.builder(
+            child: isLoading
+                ? _ShimmerEffect(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 6,
+                padding: const EdgeInsets.only(left: 20),
+                itemBuilder: (context, index) {
+                  return const _ShimmerGameCard().paddingOnly(right: 12);
+                },
+              ),
+            )
+                : ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: games.length,
               padding: const EdgeInsets.only(left: 20),
@@ -244,6 +259,104 @@ class _HorizontalGameSection extends StatelessWidget {
   }
 }
 
+class _ShimmerEffect extends StatefulWidget {
+  const _ShimmerEffect({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ShimmerEffect> createState() => _ShimmerEffectState();
+}
+
+class _ShimmerEffectState extends State<_ShimmerEffect>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              colors: [
+                AppColors.bg1.withValues(alpha: 0.55),
+                AppColors.bg2.withValues(alpha: 0.18),
+                AppColors.bg1.withValues(alpha: 0.55),
+              ],
+              stops: const [0.35, 0.5, 0.65],
+              begin: Alignment(-3 + t * 6, 0),
+              end: Alignment(-1 + t * 6, 0),
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _ShimmerGameCard extends StatelessWidget {
+  const _ShimmerGameCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 130,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 130,
+            height: 170,
+            decoration: BoxDecoration(
+              color: AppColors.bg1,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 90,
+            height: 12,
+            decoration: BoxDecoration(
+              color: AppColors.bg1,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: 50,
+            height: 10,
+            decoration: BoxDecoration(
+              color: AppColors.bg1,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DiscoverSectionHeader extends StatelessWidget {
   const _DiscoverSectionHeader({required this.title});
 
@@ -251,14 +364,14 @@ class _DiscoverSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-      return Text(
-        title,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.title,
-      );
-    }
+    return Text(
+      title,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.title,
+    );
   }
+}
 
 class _DiscoverGameCard extends StatelessWidget {
   const _DiscoverGameCard({required this.game, this.showRating = true});

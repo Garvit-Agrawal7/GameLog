@@ -25,18 +25,48 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   Future<List<GameModal>>? _topGenreFuture;
   int? _lastCompletedGameId;
   String? _lastCompletedGameTitle;
+  String _selectedGenre = 'Adventure';
+  static const List<String> _allGenres = [
+    'Adventure',
+    'Arcade',
+    'Fighting',
+    'Hack and slash/Beat \'em up',
+    'Indie',
+    'MOBA',
+    'Platform',
+    'Puzzle',
+    'Racing',
+    'Role-playing (RPG)',
+    'Shooter',
+    'Simulator',
+    'Sport',
+    'Strategy',
+    'Tactical',
+  ];
 
   IgdbService get _service => widget.service ?? ref.read(igdbServiceProvider);
 
   @override
   void initState() {
     super.initState();
-    _trendingFuture = _service.fetchTrendingGames(limit: 50).catchError(
-      (_) => <GameModal>[],
-    );
+    _trendingFuture = _service
+        .fetchTrendingGames(limit: 50)
+        .catchError((_) => <GameModal>[]);
     _upcomingFuture = _service.fetchUpcomingGames().catchError(
       (_) => <GameModal>[],
     );
+    _topGenreFuture = _service
+        .fetchByGenre('Adventure', limit: 50)
+        .catchError((_) => <GameModal>[]
+    );
+  }
+
+  void _onGenreSelected(String genre) {
+    if (_selectedGenre == genre) return;
+    setState(() {
+      _selectedGenre = genre;
+      _topGenreFuture = _service.fetchByGenre(genre, limit: 50).catchError((_) => <GameModal>[]);
+    });
   }
 
   void _syncSimilarGames(List<GameModal> recentlyCompleted) {
@@ -62,22 +92,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final recentlyCompleted = ref.watch(recentlyCompletedProvider);
     final libraryGames = ref.watch(libraryGamesProvider);
     final libraryIds = libraryGames.map((g) => g.id).toSet();
-    final topGenre = ref.watch(topGenreProvider);
-
-    if (topGenre != null && _topGenreFuture == null) {
-      _topGenreFuture = _service.fetchByGenre(topGenre, limit: 50).catchError((_) => <GameModal>[]);
-    }
-
-    ref.listen(libraryGamesProvider, (previous, next) {
-      if (_topGenreFuture == null) {
-        final genre = ref.read(topGenreProvider);
-        if (genre != null) {
-          setState(() {
-            _topGenreFuture = _service.fetchByGenre(genre, limit: 50).catchError((_) => <GameModal>[]);
-          });
-        }
-      }
-    });
 
     _syncSimilarGames(recentlyCompleted);
 
@@ -131,10 +145,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                           .take(10)
                           .toList();
 
-                      if (topGenre == null) return const SizedBox.shrink();
                       return _HorizontalGameSection(
-                        title: 'Top in $topGenre',
+                        title: 'Top in ',
                         games: genreGames,
+                        headerOverride: _GenrePickerHeader(
+                          currentGenre: _selectedGenre,
+                          allGenres: _allGenres,
+                          onGenreSelected: _onGenreSelected,
+                        ),
                       );
                     },
                   ),
@@ -177,16 +195,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
 class _HorizontalGameSection extends StatelessWidget {
   const _HorizontalGameSection({
-    required this.title,
     required this.games,
+    this.title,
     this.rightPadding = 20,
     this.showRating = true,
+    this.headerOverride,
   });
 
-  final String title;
+  final String? title;
   final List<GameModal> games;
   final double rightPadding;
   final bool showRating;
+  final Widget? headerOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +219,9 @@ class _HorizontalGameSection extends StatelessWidget {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(20, 0, rightPadding, 0),
-            child: _DiscoverSectionHeader(title: title),
+            child:
+                headerOverride ??
+                _DiscoverSectionHeader(title: title!,),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -229,14 +251,14 @@ class _DiscoverSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: AppTextStyles.title,
-    );
+      return Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.title,
+      );
+    }
   }
-}
 
 class _DiscoverGameCard extends StatelessWidget {
   const _DiscoverGameCard({required this.game, this.showRating = true});
@@ -294,6 +316,280 @@ class _DiscoverGameCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GenrePickerHeader extends StatelessWidget {
+  const _GenrePickerHeader({
+    required this.currentGenre,
+    required this.allGenres,
+    required this.onGenreSelected,
+  });
+
+  final String currentGenre;
+  final List<String> allGenres;
+  final ValueChanged<String> onGenreSelected;
+
+  void _showGenreMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+    Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    final Offset offset = button.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
+
+    late OverlayEntry entry;
+    final scrollController = ScrollController();
+    final focusNode = FocusNode(debugLabel: 'genreMenu');
+
+    final thumbFractionNotifier = ValueNotifier<double>(0.0);
+    final thumbExtentNotifier = ValueNotifier<double>(1.0);
+
+    bool isOpen = true;
+
+    ScrollPosition? ancestorScrollPosition;
+    try {
+      ancestorScrollPosition = Scrollable.of(context).position;
+    } catch (_) {
+      ancestorScrollPosition = null;
+    }
+
+    void close() {
+      if (!isOpen) return;
+      isOpen = false;
+      ancestorScrollPosition?.removeListener(close);
+      scrollController.dispose();
+      focusNode.dispose();
+      entry.remove();
+    }
+
+    ancestorScrollPosition?.addListener(close);
+
+    void updateThumb() {
+      if (!scrollController.hasClients) return;
+      final pos = scrollController.position;
+      final viewport = pos.viewportDimension;
+      final maxScroll = pos.maxScrollExtent;
+      final contentSize = viewport + maxScroll;
+
+      thumbExtentNotifier.value = contentSize <= 0
+          ? 1.0
+          : (viewport / contentSize).clamp(0.08, 1.0);
+      thumbFractionNotifier.value =
+      maxScroll <= 0 ? 0.0 : (pos.pixels / maxScroll).clamp(0.0, 1.0);
+    }
+
+    scrollController.addListener(updateThumb);
+
+    entry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: close,
+              behavior: HitTestBehavior.translucent,
+            ),
+          ),
+          Positioned(
+            left: offset.dx,
+            top: offset.dy + button.size.height + 4,
+            width: 260,
+            child: Focus(
+              focusNode: focusNode,
+              onFocusChange: (hasFocus) {
+                if (!hasFocus) close();
+              },
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  decoration: BoxDecoration(
+                    color: Color.alphaBlend(
+                      AppColors.accentPurple.withValues(alpha: 0.06),
+                      AppColors.bg1.withValues(alpha: 0.95),
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.accentPurple.withValues(alpha: 0.18),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: StatefulBuilder(
+                      builder: (context, setState) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          updateThumb();
+                        });
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                controller: scrollController,
+                                itemCount: allGenres.length,
+                                itemBuilder: (context, index) {
+                                  final genre = allGenres[index];
+
+                                  return ListTile(
+                                    title: Text(genre),
+                                    trailing: genre == currentGenre
+                                        ? const Icon(
+                                      Icons.check,
+                                      color: AppColors.accentPurple,
+                                    )
+                                        : null,
+                                    onTap: () {
+                                      onGenreSelected(genre);
+                                      close();
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                            Container(
+                              width: 16,
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.arrow_drop_up,
+                                    size: 16,
+                                    color: AppColors.accentPurple
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                  Expanded(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final trackHeight =
+                                            constraints.maxHeight;
+
+                                        return Stack(
+                                          children: [
+                                            Center(
+                                              child: Container(
+                                                width: 1,
+                                                height: trackHeight,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.accentPurple
+                                                      .withValues(alpha: 0.10),
+                                                  borderRadius:
+                                                  BorderRadius.circular(2),
+                                                ),
+                                              ),
+                                            ),
+                                            AnimatedBuilder(
+                                              animation: Listenable.merge([
+                                                thumbFractionNotifier,
+                                                thumbExtentNotifier,
+                                              ]),
+                                              builder: (context, _) {
+                                                final extentFraction =
+                                                    thumbExtentNotifier.value;
+                                                final scrollFraction =
+                                                    thumbFractionNotifier.value;
+                                                final thumbHeight = trackHeight *
+                                                    extentFraction;
+                                                final maxThumbTravel =
+                                                    trackHeight - thumbHeight;
+                                                final thumbTop = maxThumbTravel *
+                                                    scrollFraction;
+
+                                                return Positioned(
+                                                  top: thumbTop,
+                                                  left: 0,
+                                                  right: 0,
+                                                  child: Center(
+                                                    child: Container(
+                                                      width: 5,
+                                                      height: thumbHeight,
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors
+                                                            .accentPurple
+                                                            .withValues(
+                                                            alpha: 0.55),
+                                                        borderRadius:
+                                                        BorderRadius
+                                                            .circular(2),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 16,
+                                    color: AppColors.accentPurple
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Overlay.of(context).insert(entry);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusNode.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (buttonContext) {
+        return InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _showGenreMenu(buttonContext),
+          child: RichText(
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              style: AppTextStyles.title,
+              children: [
+                const TextSpan(text: 'Top in '),
+                TextSpan(
+                  text: currentGenre,
+                  style: const TextStyle(color: AppColors.accentPurple),
+                ),
+                const WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: AppColors.accentPurple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

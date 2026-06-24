@@ -60,6 +60,8 @@ class IgdbService {
   final String _clientId;
   final String _accessToken;
 
+  final Map<String, List<GameModal>> _searchCache = {};
+
   Future<List<GameModal>> enrichGames(List<GameModal> seeds) async {
     if (seeds.isEmpty) {
       return seeds;
@@ -78,7 +80,12 @@ class IgdbService {
 
   Future<List<GameModal>> searchGames(String query, {int limit = 10}) async {
     final trimmedQuery = query.trim();
+    final cacheKey = trimmedQuery.toLowerCase();
     if (trimmedQuery.isEmpty) return const [];
+
+    if (_searchCache.containsKey(cacheKey)) {
+      return _searchCache[cacheKey]!;
+    }
 
     try {
       final response = await _dio.post(
@@ -96,7 +103,15 @@ class IgdbService {
       if (response.data is! List || (response.data as List).isEmpty) {
         return const [];
       }
-      return (response.data as List).whereType<Map<String, dynamic>>().map(_payloadToGameModal).toList();
+      final result = (response.data as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_payloadToGameModal)
+          .toList();
+
+      // Stores result for future searches
+      _searchCache[cacheKey] = result;
+
+      return result;
 
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) throw IgdbRateLimitException('Slow Down bruh');

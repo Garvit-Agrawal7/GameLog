@@ -29,13 +29,19 @@ class IgdbService {
     required String token,
     Dio? dio,
     String? clientId,
-  })  : _dio = dio ?? Dio(),
-        _clientId = clientId ?? dotenv.env['CLIENT_ID']!,
-        _accessToken = token;
+  })  : _dio = dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: 'https://api.igdb.com/v4',
+              headers: {
+                'Accept': 'application/json',
+                'Client-ID': clientId ?? dotenv.env['CLIENT_ID']!,
+                'Authorization': 'Bearer $token',
+              },
+            ),
+          );
 
   final Dio _dio;
-  final String _clientId;
-  final String _accessToken;
 
   final Map<String, List<GameModal>> _searchCache = {};
 
@@ -89,15 +95,8 @@ class IgdbService {
 
     try {
       final response = await _dio.post(
-        'https://api.igdb.com/v4/games',
+        '/games',
         data: _buildSearch(trimmedQuery, limit),
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) {
@@ -122,7 +121,7 @@ class IgdbService {
   Future<List<GameModal>> fetchSimilarGames(int gameId) async {
     try {
       final response = await _dio.post(
-        'https://api.igdb.com/v4/games',
+        '/games',
         data: '''
           fields
             similar_games.name,
@@ -136,13 +135,6 @@ class IgdbService {
           where id = $gameId;
           limit 1;
         ''',
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) {
@@ -185,16 +177,11 @@ class IgdbService {
   Future<List<GameModal>> fetchTrendingGames({int limit = 10}) async {
     final yearStart = DateTime(DateTime.now().year).millisecondsSinceEpoch ~/ 1000;
     final response = await _dio.post(
-      'https://api.igdb.com/v4/games',
+      '/games',
       data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
           'where first_release_date > $yearStart & rating != null & rating_count != null & game_type = (0,8,9); '
           'sort rating_count desc; '
           'limit $limit;',
-      options: Options(headers: {
-        'Client-ID': _clientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      }),
     );
 
     if (response.data is! List || (response.data as List).isEmpty) return const [];
@@ -209,16 +196,11 @@ class IgdbService {
     final yearEnd = DateTime.now().add(Duration(days: 365)).millisecondsSinceEpoch ~/ 1000;
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final response = await _dio.post(
-      'https://api.igdb.com/v4/games',
+      '/games',
       data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating; '
           'where first_release_date > $now & first_release_date < $yearEnd & hypes != null & game_type = 0; '
           'sort hypes desc; '
           'limit $limit;',
-      options: Options(headers: {
-        'Client-ID': _clientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      }),
     );
 
     if (response.data is! List || (response.data as List).isEmpty) return const [];
@@ -229,17 +211,12 @@ class IgdbService {
   Future<List<GameModal>> fetchByGenre(String genre, {int limit = 10}) async {
     try {
       final response = await _dio.post(
-        'https://api.igdb.com/v4/games',
+        '/games',
         data: 'fields name,summary,cover.image_id,genres.name,first_release_date,rating,rating_count; '
             'where genres.name = "${genre.replaceAll('"', '\\"')}" '
             '& rating != null & rating_count != null & game_type = (0,8,9); '
             'sort rating_count desc; '
             'limit $limit;',
-        options: Options(headers: {
-          'Client-ID': _clientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        }),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) return const [];
@@ -258,17 +235,9 @@ class IgdbService {
 
   Future<GameModal> _fetchGameByTitle(GameModal seed) async {
     try {
-      const requestUrl = 'https://api.igdb.com/v4/games';
       final response = await _dio.post(
-        requestUrl,
+        '/games',
         data: _buildQuery(seed.title),
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) {
@@ -317,17 +286,9 @@ class IgdbService {
     }
 
     try {
-      const requestUrl = 'https://api.igdb.com/v4/multiquery';
       final response = await _dio.post(
-        requestUrl,
+        '/multiquery',
         data: _buildMultiQuery(batch),
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) {
@@ -609,17 +570,9 @@ class IgdbService {
 
   Future<int?> fetchTimeToBeat(int gameId) async {
     try {
-      const requestUrl = 'https://api.igdb.com/v4/game_time_to_beats';
       final response = await _dio.post(
-        requestUrl,
+        '/game_time_to_beats',
         data: 'fields hastily; where game_id = $gameId; limit 1;',
-        options: Options(
-          headers: {
-            'Client-ID': _clientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.data is! List || (response.data as List).isEmpty) {

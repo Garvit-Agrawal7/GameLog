@@ -25,6 +25,20 @@ final igdbServiceProvider = Provider<IgdbService>((ref) {
 });
 
 class IgdbService {
+  IgdbService({
+    required String token,
+    Dio? dio,
+    String? clientId,
+  })  : _dio = dio ?? Dio(),
+        _clientId = clientId ?? dotenv.env['CLIENT_ID']!,
+        _accessToken = token;
+
+  final Dio _dio;
+  final String _clientId;
+  final String _accessToken;
+
+  final Map<String, List<GameModal>> _searchCache = {};
+
   static Future<String> fetchAccessToken() async {
     final clientId = dotenv.env['CLIENT_ID']!;
     final clientSecret = dotenv.env['CLIENT_SECRET']!;
@@ -47,20 +61,6 @@ class IgdbService {
     }
     return accessToken;
   }
-
-  IgdbService({
-    required String token,
-    Dio? dio,
-    String? clientId,
-  })  : _dio = dio ?? Dio(),
-        _clientId = clientId ?? dotenv.env['CLIENT_ID']!,
-        _accessToken = token;
-
-  final Dio _dio;
-  final String _clientId;
-  final String _accessToken;
-
-  final Map<String, List<GameModal>> _searchCache = {};
 
   Future<List<GameModal>> enrichGames(List<GameModal> seeds) async {
     if (seeds.isEmpty) {

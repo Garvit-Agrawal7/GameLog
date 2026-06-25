@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../database/database_providers.dart';
-import '../igdb_service.dart';
+import '../services/igdb_service.dart';
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';

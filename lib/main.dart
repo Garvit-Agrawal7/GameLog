@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'database/app_database.dart';
-import 'igdb_service.dart';
+import 'services/igdb_service.dart';
 import 'main_shell.dart';
 import 'theme/app_theme.dart';
 

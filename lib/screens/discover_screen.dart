@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
-import '../igdb_service.dart';
+import '../services/igdb_service.dart';
 import 'game_detail_screen.dart' as detail;
 import '../game_modal.dart';
 import '../theme/app_colors.dart';

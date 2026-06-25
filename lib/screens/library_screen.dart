@@ -42,7 +42,7 @@ class LibraryScreen extends ConsumerWidget {
         ),
       ),
       data: (games) => DefaultTabController(
-        length: 5,
+        length: 7,
         initialIndex: animateToInitialTab ? 0 : initialTabIndex,
         child: _LibraryTabScaffold(
           games: games,
@@ -112,6 +112,8 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
             SizedBox(width: 110, child: Tab(text: 'All Games')),
             SizedBox(width: 96, child: Tab(text: 'Playing')),
             SizedBox(width: 112, child: Tab(text: 'Completed')),
+            SizedBox(width: 88, child: Tab(text: 'Paused')),
+            SizedBox(width: 100, child: Tab(text: 'Backlog')),
             SizedBox(width: 100, child: Tab(text: 'Wishlist')),
             SizedBox(width: 92, child: Tab(text: 'Dropped')),
           ],
@@ -123,6 +125,8 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
           _LibraryGrid(status: 'playing', games: widget.games),
           _LibraryGrid(status: 'completed', games: widget.games),
           _LibraryGrid(status: 'wishlist', games: widget.games),
+          _LibraryGrid(status: 'paused', games: widget.games),
+          _LibraryGrid(status: 'backlog', games: widget.games),
           _LibraryGrid(status: 'dropped', games: widget.games),
         ],
       ),
@@ -183,7 +187,7 @@ class _LibraryGridState extends State<_LibraryGrid> {
           }
 
           if (widget.status == 'all') {
-            const order = ['playing', 'completed', 'wishlist', 'dropped'];
+            const order = ['playing', 'completed', 'paused', 'backlog', 'wishlist', 'dropped'];
             final indexA = order.indexOf(a.status ?? '');
             final indexB = order.indexOf(b.status ?? '');
             if (indexA != indexB) {
@@ -196,7 +200,7 @@ class _LibraryGridState extends State<_LibraryGrid> {
         });
         break;
       case _SortOption.status:
-        const order = ['playing', 'completed', 'wishlist', 'dropped'];
+        const order = ['playing', 'completed', 'paused', 'backlog', 'wishlist', 'dropped'];
         sorted.sort((a, b) {
           final indexA = order.indexOf(a.status ?? '');
           final indexB = order.indexOf(b.status ?? '');
@@ -452,6 +456,8 @@ class _StatusPill extends StatelessWidget {
       'playing' => 'Playing',
       'completed' => 'Completed',
       'wishlist' => 'Wishlist',
+      'paused' => 'Paused',
+      'backlog' => 'Backlog',
       'dropped' => 'Dropped',
       _ => status,
     };
@@ -459,6 +465,8 @@ class _StatusPill extends StatelessWidget {
     final color = switch (status) {
       'playing' => Colors.greenAccent[400],
       'completed' => Colors.lightBlueAccent,
+      'paused' => Color.lerp(Colors.orangeAccent, Colors.yellowAccent, 0.2),
+      'backlog' => Colors.deepPurpleAccent,
       'wishlist' => Colors.pinkAccent,
       'dropped' => Colors.redAccent,
       _ => AppColors.accentPurple,

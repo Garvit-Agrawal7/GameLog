@@ -2,7 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
-import '../igdb_service.dart';
+import '../services/igdb_service.dart';
 import '../database/app_database.dart';
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
@@ -284,5 +284,3 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     );
   }
 }
-
-

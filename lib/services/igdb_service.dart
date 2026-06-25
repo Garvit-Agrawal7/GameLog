@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'game_modal.dart';
+import '../game_modal.dart';
 
 class IgdbRateLimitException implements Exception {
   IgdbRateLimitException(this.message);
@@ -436,7 +436,7 @@ class IgdbService {
       title: data['name'] as String? ?? 'Unknown Game',
       coverUrl: coverId != null
           ? _coverUrl(coverId)
-          : 'https://picsum.photos/seed/igdb-$id/800/1200',
+          : '',
       genres: genres,
       summary: summary?.isNotEmpty == true ? summary! : '',
       rating: rating ?? 0,
@@ -604,7 +604,7 @@ class IgdbService {
   }
 
   String _coverUrl(String imageId) {
-    return 'https://images.igdb.com/igdb/image/upload/t_1080p/$imageId.jpg';
+    return 'https://images.igdb.com/igdb/image/upload/t_720p/$imageId.jpg';
   }
 
   Future<int?> fetchTimeToBeat(int gameId) async {

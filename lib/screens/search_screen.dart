@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../igdb_service.dart';
+import '../services/igdb_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/search_games.dart';
 

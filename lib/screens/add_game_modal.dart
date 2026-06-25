@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_library_provider.dart';
-import '../igdb_service.dart';
+import '../services/igdb_service.dart';
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -192,6 +192,16 @@ Future<void> showStatusSelectionSheet(
                       icon: Icons.bookmark_outline_rounded,
                       label: 'Wishlist',
                       value: 'wishlist',
+                    ),
+                    statusButton(
+                      icon: Icons.pause_circle_outline_rounded,
+                      label: 'Paused',
+                      value: 'paused',
+                    ),
+                    statusButton(
+                      icon: Icons.view_list_outlined,
+                      label: 'Backlog',
+                      value: 'backlog',
                     ),
                     statusButton(
                       icon: Icons.do_not_disturb_alt_rounded,

@@ -71,6 +71,7 @@ class _LibraryTabScaffold extends StatefulWidget {
 
 class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
   bool _animationScheduled = false;
+  _LibraryDisplayMode _displayMode = _LibraryDisplayMode.list;
 
   @override
   void didChangeDependencies() {
@@ -121,13 +122,55 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
       ),
       body: TabBarView(
         children: [
-          _LibraryGrid(status: 'all', games: widget.games),
-          _LibraryGrid(status: 'playing', games: widget.games),
-          _LibraryGrid(status: 'completed', games: widget.games),
-          _LibraryGrid(status: 'wishlist', games: widget.games),
-          _LibraryGrid(status: 'paused', games: widget.games),
-          _LibraryGrid(status: 'backlog', games: widget.games),
-          _LibraryGrid(status: 'dropped', games: widget.games),
+          _LibraryGrid(
+            key: const PageStorageKey('library-all'),
+            status: 'all',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-playing'),
+            status: 'playing',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-completed'),
+            status: 'completed',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-paused'),
+            status: 'paused',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-backlog'),
+            status: 'backlog',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-wishlist'),
+            status: 'wishlist',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
+          _LibraryGrid(
+            key: const PageStorageKey('library-dropped'),
+            status: 'dropped',
+            games: widget.games,
+            selectedMode: _displayMode,
+            onModeChanged: (mode) => setState(() => _displayMode = mode),
+          ),
         ],
       ),
     );
@@ -145,18 +188,31 @@ extension on _SortOption {
   };
 }
 
+enum _LibraryDisplayMode { list, tab }
+
 class _LibraryGrid extends StatefulWidget {
-  const _LibraryGrid({required this.status, required this.games});
+  const _LibraryGrid({
+    super.key,
+    required this.status,
+    required this.games,
+    required this.selectedMode,
+    required this.onModeChanged,
+  });
 
   final String status;
   final List<GameModal> games;
+  final _LibraryDisplayMode selectedMode;
+  final ValueChanged<_LibraryDisplayMode> onModeChanged;
 
   @override
   State<_LibraryGrid> createState() => _LibraryGridState();
 }
 
-class _LibraryGridState extends State<_LibraryGrid> {
+class _LibraryGridState extends State<_LibraryGrid> with AutomaticKeepAliveClientMixin {
   _SortOption _sortOption = _SortOption.alphabetical;
+
+  @override
+  bool get wantKeepAlive => true;
 
   List<GameModal> _filteredGames() {
     return widget.status == 'all'
@@ -273,6 +329,7 @@ class _LibraryGridState extends State<_LibraryGrid> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final filteredGames = _filteredGames();
 
     if (filteredGames.isEmpty) {
@@ -298,21 +355,29 @@ class _LibraryGridState extends State<_LibraryGrid> {
         Padding(
           padding: const EdgeInsets.fromLTRB(26, 12, 26, 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.gamepad_outlined, size: 18, color: AppColors.accentPurple),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${filteredGames.length} ${filteredGames.length == 1 ? 'entry' : 'entries'}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.accentPurple,
-                      fontSize: 16,
-                    ),
+              _ViewModeToggle(
+                selectedMode: widget.selectedMode,
+                onChanged: widget.onModeChanged,
+              ),
+              Expanded(
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.gamepad_outlined, size: 18, color: AppColors.accentPurple),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${filteredGames.length} ${filteredGames.length == 1 ? 'entry' : 'entries'}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.accentPurple,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               Builder(
                 builder: (buttonContext) {
@@ -333,25 +398,182 @@ class _LibraryGridState extends State<_LibraryGrid> {
           ),
         ),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: sortedGames.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, index) => _LibraryGameCard(game: sortedGames[index]),
-          ),
+          child: widget.selectedMode == _LibraryDisplayMode.list
+              ? ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sortedGames.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) => _LibraryGameCard(game: sortedGames[index]),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sortedGames.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.54,
+                  ),
+                  itemBuilder: (context, index) => _LibraryGameCard(
+                    game: sortedGames[index],
+                    compact: true,
+                  ),
+                ),
         ),
       ],
     );
   }
 }
 
+class _ViewModeToggle extends StatelessWidget {
+  const _ViewModeToggle({
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  final _LibraryDisplayMode selectedMode;
+  final ValueChanged<_LibraryDisplayMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.bg1,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ViewModeButton(
+            icon: Icons.view_list_rounded,
+            selected: selectedMode == _LibraryDisplayMode.list,
+            onTap: () => onChanged(_LibraryDisplayMode.list),
+            tooltip: 'List view',
+          ),
+          const SizedBox(width: 4),
+          _ViewModeButton(
+            icon: Icons.grid_view_rounded,
+            selected: selectedMode == _LibraryDisplayMode.tab,
+            onTap: () => onChanged(_LibraryDisplayMode.tab),
+            tooltip: 'Tab view',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewModeButton extends StatelessWidget {
+  const _ViewModeButton({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accentPurple.withValues(alpha: 0.18) : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: Icon(
+              icon,
+              size: 18,
+              color: selected ? AppColors.accentPurple : AppColors.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LibraryGameCard extends ConsumerWidget {
-  const _LibraryGameCard({required this.game});
+  const _LibraryGameCard({required this.game, this.compact = false});
 
   final GameModal game;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (compact) {
+      return GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => GameDetailScreen(game: game),
+            ),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: AppCachedImage(
+                        imageUrl: game.coverUrl,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 25,
+                        height: 25,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(child: _StatusBadgeIcon(status: game.status)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 30,
+              child: Text(
+                game.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.title.copyWith(fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -416,7 +638,7 @@ class _LibraryGameCard extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.star_rounded, color: AppColors.textPrimary, size: 20),
+                        const Icon(Icons.star_rounded, color: AppColors.warning, size: 20),
                         const SizedBox(width: 4),
                         SizedBox(
                           width: 20,
@@ -441,6 +663,41 @@ class _LibraryGameCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _StatusBadgeIcon extends StatelessWidget {
+  const _StatusBadgeIcon({required this.status});
+
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
+      'playing' => Colors.greenAccent[400],
+      'completed' => Colors.lightBlueAccent,
+      'paused' => Color.lerp(Colors.orangeAccent, Colors.yellowAccent, 0.2),
+      'backlog' => Colors.deepPurpleAccent,
+      'wishlist' => Colors.pinkAccent,
+      'dropped' => Colors.redAccent,
+      _ => AppColors.accentPurple,
+    };
+
+    final icon = switch (status) {
+      'wishlist' => Icons.favorite,
+      'playing' => Icons.play_arrow_rounded,
+      'completed' => Icons.sports_esports_rounded,
+      'paused' => Icons.pause_circle_filled_rounded,
+      'dropped' => Icons.do_not_disturb_alt_rounded,
+      'backlog' => Icons.sports_esports_outlined,
+      _ => Icons.view_list_rounded,
+    };
+
+    return Icon(
+      icon,
+      color: color,
+      size: 18,
     );
   }
 }
@@ -472,16 +729,22 @@ class _StatusPill extends StatelessWidget {
       _ => AppColors.accentPurple,
     };
 
-    final indicator = status == 'wishlist'
-        ? Icon(Icons.favorite, size: 12, color: color)
-        : Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+    final indicator = switch (status) {
+      'wishlist' => Icon(Icons.favorite, size: 12, color: color),
+      'playing' => Icon(Icons.play_arrow_rounded, size: 12, color: color),
+      'completed' => Icon(Icons.sports_esports_rounded, size: 12, color: color),
+      'paused' => Icon(Icons.pause_circle_filled_rounded, size: 12, color: color),
+      'dropped' => Icon(Icons.do_not_disturb_alt_rounded, size: 12, color: color),
+      'backlog' => Icon(Icons.sports_esports_rounded, size: 12, color: color),
+      _ => Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
       ),
-    );
+    };
 
     final labelColor = status == 'wishlist' ? AppColors.textPrimary : color;
 

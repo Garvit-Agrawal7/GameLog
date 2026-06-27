@@ -136,29 +136,28 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       );
                     },
                   ),
-                if (recentlyCompleted.isNotEmpty)
-                  FutureBuilder<List<GameModal>>(
-                    future: _topGenreFuture,
-                    builder: (context, topGenreSnapshot) {
-                      final isLoading =
-                          topGenreSnapshot.connectionState != ConnectionState.done;
-                      final genreGames = (topGenreSnapshot.data ?? [])
-                          .where((g) => !libraryIds.contains(g.id))
-                          .take(10)
-                          .toList();
+                FutureBuilder<List<GameModal>>(
+                  future: _topGenreFuture,
+                  builder: (context, topGenreSnapshot) {
+                    final isLoading =
+                        topGenreSnapshot.connectionState != ConnectionState.done;
+                    final genreGames = (topGenreSnapshot.data ?? [])
+                        .where((g) => !libraryIds.contains(g.id))
+                        .take(10)
+                        .toList();
 
-                      return _HorizontalGameSection(
-                        title: 'Top in ',
-                        games: genreGames,
-                        isLoading: isLoading,
-                        headerOverride: _GenrePickerHeader(
-                          currentGenre: _selectedGenre,
-                          allGenres: _allGenres,
-                          onGenreSelected: _onGenreSelected,
-                        ),
-                      );
-                    },
-                  ),
+                    return _HorizontalGameSection(
+                      title: 'Top in ',
+                      games: genreGames,
+                      isLoading: isLoading,
+                      headerOverride: _GenrePickerHeader(
+                        currentGenre: _selectedGenre,
+                        allGenres: _allGenres,
+                        onGenreSelected: _onGenreSelected,
+                      ),
+                    );
+                  },
+                ),
                 FutureBuilder<List<GameModal>>(
                   future: _trendingFuture,
                   builder: (context, trendingSnapshot) {

@@ -32,6 +32,7 @@ dependencies:
   shimmer: ^3.0.0
   flutter_animate: ^4.5.0
   flutter_dotenv: ^5.1.0
+  url_launcher: ^6.3.0
 
   cupertino_icons: ^1.0.8
 
@@ -47,3 +48,4 @@ flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/images/

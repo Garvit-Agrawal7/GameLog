@@ -6,6 +6,7 @@ import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
+import 'import_dialog.dart';
 import 'game_detail_screen.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -26,14 +27,42 @@ class LibraryScreen extends ConsumerWidget {
     return gamesAsync.when(
       loading: () => Scaffold(
         backgroundColor: AppColors.bg0,
-        appBar: AppBar(title: const Text('My Games')),
+        appBar: AppBar(
+          title: const Text('My Games'),
+          toolbarHeight: 52,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: IconButton(
+                tooltip: 'Import games',
+                icon: const Icon(Icons.file_upload_outlined, size: 20),
+                color: AppColors.accentPurple,
+                onPressed: () => showImportGamesDialog(context),
+              ),
+            ),
+          ],
+        ),
         body: const Center(
           child: CircularProgressIndicator(color: AppColors.accentPurple),
         ),
       ),
       error: (error, stack) => Scaffold(
         backgroundColor: AppColors.bg0,
-        appBar: AppBar(title: const Text('My Games')),
+        appBar: AppBar(
+          title: const Text('My Games'),
+          toolbarHeight: 52,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: IconButton(
+                tooltip: 'Import games',
+                icon: const Icon(Icons.file_upload_outlined, size: 20),
+                color: AppColors.accentPurple,
+                onPressed: () => showImportGamesDialog(context),
+              ),
+            ),
+          ],
+        ),
         body: Center(
           child: Text(
             'Error loading library: $error',
@@ -70,30 +99,7 @@ class _LibraryTabScaffold extends StatefulWidget {
 }
 
 class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
-  bool _animationScheduled = false;
   _LibraryDisplayMode _displayMode = _LibraryDisplayMode.list;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (_animationScheduled || !widget.animateToTarget || widget.targetTabIndex == 0) {
-      return;
-    }
-
-    _animationScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      DefaultTabController.of(context).animateTo(
-        widget.targetTabIndex,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +107,18 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
         title: const Text('My Games'),
+        toolbarHeight: 40,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              tooltip: 'Import games',
+              icon: const Icon(Icons.file_upload_outlined, size: 20),
+              color: AppColors.accentPurple,
+              onPressed: () => showImportGamesDialog(context),
+            ),
+          ),
+        ],
         bottom: TabBar(
           isScrollable: true,
           labelPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -120,52 +138,45 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
           ],
         ),
       ),
-      body: TabBarView(
-        children: [
-          _LibraryGrid(
-            key: const PageStorageKey('library-all'),
+        body: TabBarView(
+          children: [
+            _LibraryGrid(
             status: 'all',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-playing'),
             status: 'playing',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-completed'),
             status: 'completed',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-paused'),
             status: 'paused',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-backlog'),
             status: 'backlog',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-wishlist'),
             status: 'wishlist',
             games: widget.games,
             selectedMode: _displayMode,
             onModeChanged: (mode) => setState(() => _displayMode = mode),
           ),
           _LibraryGrid(
-            key: const PageStorageKey('library-dropped'),
             status: 'dropped',
             games: widget.games,
             selectedMode: _displayMode,
@@ -192,7 +203,6 @@ enum _LibraryDisplayMode { list, tab }
 
 class _LibraryGrid extends StatefulWidget {
   const _LibraryGrid({
-    super.key,
     required this.status,
     required this.games,
     required this.selectedMode,
@@ -210,6 +220,14 @@ class _LibraryGrid extends StatefulWidget {
 
 class _LibraryGridState extends State<_LibraryGrid> with AutomaticKeepAliveClientMixin {
   _SortOption _sortOption = _SortOption.alphabetical;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.status == 'all') {
+      _sortOption = _SortOption.status;
+    }
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -269,7 +287,12 @@ class _LibraryGridState extends State<_LibraryGrid> with AutomaticKeepAliveClien
 
   List<_SortOption> get _availableOptions {
     if (widget.status == 'all') {
-      return _SortOption.values;
+      return const [
+        _SortOption.status,
+        _SortOption.alphabetical,
+        _SortOption.score,
+        _SortOption.recency,
+      ];
     }
     return _SortOption.values.where((o) => o != _SortOption.status).toList();
   }
@@ -350,76 +373,84 @@ class _LibraryGridState extends State<_LibraryGrid> with AutomaticKeepAliveClien
 
     final sortedGames = _sortedGames(filteredGames);
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(26, 12, 26, 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _ViewModeToggle(
-                selectedMode: widget.selectedMode,
-                onChanged: widget.onModeChanged,
-              ),
-              Expanded(
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.gamepad_outlined, size: 18, color: AppColors.accentPurple),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${filteredGames.length} ${filteredGames.length == 1 ? 'entry' : 'entries'}',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.accentPurple,
-                          fontSize: 16,
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _ViewModeToggle(
+                  selectedMode: widget.selectedMode,
+                  onChanged: widget.onModeChanged,
+                ),
+                Expanded(
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.gamepad_outlined, size: 17, color: AppColors.accentPurple),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${filteredGames.length} ${filteredGames.length == 1 ? 'entry' : 'entries'}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.accentPurple,
+                            fontSize: 15,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Builder(
-                builder: (buttonContext) {
-                  return SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => _showSortMenu(buttonContext),
-                      icon: const Icon(Icons.sort_rounded, size: 20, color: AppColors.accentPurple),
-                      tooltip: 'Sort games',
-                    ),
-                  );
-                },
-              ),
-            ],
+                Builder(
+                  builder: (buttonContext) {
+                    return SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showSortMenu(buttonContext),
+                        icon: const Icon(Icons.sort_rounded, size: 18, color: AppColors.accentPurple),
+                        tooltip: 'Sort games',
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
-        Expanded(
-          child: widget.selectedMode == _LibraryDisplayMode.list
-              ? ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: sortedGames.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _LibraryGameCard(game: sortedGames[index]),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: sortedGames.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.54,
-                  ),
-                  itemBuilder: (context, index) => _LibraryGameCard(
-                    game: sortedGames[index],
-                    compact: true,
-                  ),
+        if (widget.selectedMode == _LibraryDisplayMode.list)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            sliver: SliverList.separated(
+              itemCount: sortedGames.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) => _LibraryGameCard(game: sortedGames[index]),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.54,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _LibraryGameCard(
+                  game: sortedGames[index],
+                  compact: true,
                 ),
-        ),
+                childCount: sortedGames.length,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -438,7 +469,7 @@ class _ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 36,
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: AppColors.bg1,
         borderRadius: BorderRadius.circular(18),
@@ -735,7 +766,7 @@ class _StatusPill extends StatelessWidget {
       'completed' => Icon(Icons.sports_esports_rounded, size: 12, color: color),
       'paused' => Icon(Icons.pause_circle_filled_rounded, size: 12, color: color),
       'dropped' => Icon(Icons.do_not_disturb_alt_rounded, size: 12, color: color),
-      'backlog' => Icon(Icons.sports_esports_rounded, size: 12, color: color),
+      'backlog' => Icon(Icons.sports_esports_outlined, size: 12, color: color),
       _ => Container(
         width: 10,
         height: 10,

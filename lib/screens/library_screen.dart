@@ -654,7 +654,7 @@ class _LibraryGameCard extends ConsumerWidget {
                     if (game.genres.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10.0, left: 4.0),
-                        child: _DetailPill(text: game.genres[0]),
+                        child: _GenrePill(text: game.genres[0]),
                       ),
                   ],
                 ),
@@ -797,8 +797,8 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-class _DetailPill extends StatelessWidget {
-  const _DetailPill({required this.text});
+class _GenrePill extends StatelessWidget {
+  const _GenrePill({required this.text});
 
   final String text;
 

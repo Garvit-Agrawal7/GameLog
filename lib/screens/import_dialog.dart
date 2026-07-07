@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../services/auth_service.dart';
+import 'import_review_screen.dart';
 
 Future<void> showImportGamesDialog(BuildContext context) {
   return showDialog<void>(
@@ -11,11 +14,21 @@ Future<void> showImportGamesDialog(BuildContext context) {
   );
 }
 
-class _ImportGamesDialog extends StatelessWidget {
+class _ImportGamesDialog extends ConsumerWidget {
   const _ImportGamesDialog();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(authProvider, (previous, next) {
+      if (next.payload != null && previous?.payload != next.payload) {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ImportReviewScreen(payload: next.payload!),
+          ),
+        );
+      }
+    });
     return Dialog(
       backgroundColor: AppColors.bg1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -47,13 +60,7 @@ class _ImportGamesDialog extends StatelessWidget {
                 tooltip: 'Log into Steam',
                 onPressed: () => _launchSteamLogin(context),
               ),
-              const SizedBox(height: 8),
-              _ImportSourceButton(
-                assetPath: 'assets/images/epicgames_icon.png',
-                tooltip: 'Log into Epic Games',
-                onPressed: () {},
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               _ImportSourceButton(
                 assetPath: 'assets/images/xbox_icon.png',
                 tooltip: 'Log into Xbox',
@@ -76,7 +83,7 @@ class _ImportGamesDialog extends StatelessWidget {
 }
 
 Future<void> _launchSteamLogin(BuildContext context) async {
-  final uri = Uri.parse('http://localhost:8000/auth/steam/login');
+  final uri = Uri.parse('http://192.168.1.4:8000/auth/steam/login');
 
   final launched = await launchUrl(
     uri,

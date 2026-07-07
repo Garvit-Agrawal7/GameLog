@@ -143,14 +143,23 @@ class GamesDao {
     return result.first['count'] as int;
   }
 
-  Future<int> getTotalTimeToBeat() async {
-    final result = _db.select(
-      'SELECT SUM(time_to_beat_hours) as total FROM games_table WHERE status = ?',
+  Future<int> getHoursPlayed() async {
+    final timeToBeat = _db.select(
+      'SELECT COALESCE(SUM(time_to_beat_hours), 0) as total FROM games_table WHERE status = ?',
       ['completed'],
     );
-    final total = result.first['total'];
-    if (total == null) return 0;
-    return total is num ? total.toInt() : 0;
+    final hoursPlayed = _db.select(
+      'SELECT COALESCE(SUM(hours_played), 0) as total FROM games_table',
+    );
+
+    final timeToBeatTotal = timeToBeat.first['total'];
+    final hoursPlayedTotal = hoursPlayed.first['total'];
+
+    if (hoursPlayedTotal != 0) {
+      return hoursPlayedTotal.toInt();
+    } else {
+      return timeToBeatTotal.toInt();
+    }
   }
 
   Future<double> getAverageRating() async {

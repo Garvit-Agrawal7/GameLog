@@ -57,7 +57,7 @@ final libraryStatsProvider = FutureProvider<LibraryStats>((ref) async {
   final results = await Future.wait([
     dao.getPlayingCount(),
     dao.getCompletedCount(),
-    dao.getTotalTimeToBeat(),
+    dao.getHoursPlayed(),
     dao.getAverageRating(),
   ]);
 

@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/search_games.dart';
+import '../widgets/rating_picker.dart';
 
 
 Future<void> showAddGameModal(BuildContext context) {
@@ -101,7 +102,7 @@ Future<void> showStatusSelectionSheet(
   int? userRatingNumber = game.userRating;
 
   Widget buildRatingPicker(void Function(void Function()) setState) {
-    return _RatingPicker(
+    return RatingPicker(
       selectedRating: userRatingNumber,
       onRatingChanged: (rating) {
         setState(() => userRatingNumber = rating);
@@ -235,192 +236,4 @@ Future<void> showStatusSelectionSheet(
       );
     },
   );
-}
-
-class _RatingPicker extends StatefulWidget {
-  const _RatingPicker({
-    required this.selectedRating,
-    required this.onRatingChanged,
-  });
-
-  final int? selectedRating;
-  final ValueChanged<int?> onRatingChanged;
-
-  @override
-  State<_RatingPicker> createState() => _RatingPickerState();
-}
-
-class _RatingPickerState extends State<_RatingPicker> {
-  static const List<int?> _ratings = [null, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-  static const double _itemWidth = 48;
-  static const double _selectorSize = 48;
-  static const double _height = 88;
-
-  PageController? _pageController;
-  double? _viewportFraction;
-  late int _selectedIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    final initialIndex = _ratings.indexOf(widget.selectedRating);
-    _selectedIndex = initialIndex < 0 ? 0 : initialIndex;
-  }
-
-  @override
-  void dispose() {
-    _pageController?.dispose();
-    super.dispose();
-  }
-
-  PageController _controllerForWidth(double width) {
-    final viewportFraction = (_itemWidth / width).clamp(0.01, 1.0);
-    if (_pageController == null || _viewportFraction != viewportFraction) {
-      final initialIndex = _ratings.indexOf(widget.selectedRating);
-      _pageController?.dispose();
-      _viewportFraction = viewportFraction;
-      _pageController = PageController(
-        initialPage: initialIndex < 0 ? 0 : initialIndex,
-        viewportFraction: viewportFraction,
-      );
-    }
-    return _pageController!;
-  }
-
-  String _ratingLabel(int? rating) {
-    switch (rating) {
-      case 10:
-        return 'Masterpiece';
-      case 9:
-        return 'Great';
-      case 8:
-        return 'Very Good';
-      case 7:
-        return 'Good';
-      case 6:
-        return 'Fine';
-      case 5:
-        return 'Average';
-      case 4:
-        return 'Bad';
-      case 3:
-        return 'Very Bad';
-      case 2:
-        return 'Horrible';
-      case 1:
-        return 'Appalling';
-      default:
-        return 'Not Yet Scored';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: _height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final pageController = _controllerForWidth(constraints.maxWidth);
-
-          return Stack(
-            children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: ClipPath(
-                  clipper: const _RatingLabelClipper(),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(12, 3, 12, 13),
-                    color: AppColors.accentPurple,
-                    child: Text(
-                      _ratingLabel(_ratings[_selectedIndex]),
-                      style: AppTextStyles.label.copyWith(
-                        fontSize: 13,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: _selectorSize,
-                  height: _selectorSize,
-                  margin: const EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.accentPurple, width: 2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 34),
-                child: PageView.builder(
-                  controller: pageController,
-                  itemCount: _ratings.length,
-                  onPageChanged: (index) {
-                    setState(() => _selectedIndex = index);
-                    widget.onRatingChanged(_ratings[index]);
-                  },
-                  itemBuilder: (context, index) {
-                    final rating = _ratings[index];
-                    final displayValue = rating == null ? '-' : rating.toString();
-
-                    return Center(
-                      child: SizedBox(
-                        width: _itemWidth,
-                        child: Center(
-                          child: Text(
-                            displayValue,
-                            style: AppTextStyles.label.copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.accentPurple,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _RatingLabelClipper extends CustomClipper<Path> {
-  const _RatingLabelClipper();
-
-  @override
-  Path getClip(Size size) {
-    const arrowWidth = 16.0;
-    const arrowHeight = 10.0;
-    const radius = 4.0;
-    final arrowLeft = (size.width - arrowWidth) / 2;
-    final arrowRight = arrowLeft + arrowWidth;
-    final bodyBottom = size.height - arrowHeight;
-
-    return Path()
-      ..moveTo(radius, 0)
-      ..lineTo(size.width - radius, 0)
-      ..quadraticBezierTo(size.width, 0, size.width, radius)
-      ..lineTo(size.width, bodyBottom - radius)
-      ..quadraticBezierTo(size.width, bodyBottom, size.width - radius, bodyBottom)
-      ..lineTo(arrowRight, bodyBottom)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(arrowLeft, bodyBottom)
-      ..lineTo(radius, bodyBottom)
-      ..quadraticBezierTo(0, bodyBottom, 0, bodyBottom - radius)
-      ..lineTo(0, radius)
-      ..quadraticBezierTo(0, 0, radius, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _RatingLabelClipper oldClipper) => false;
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import 'package:my_game_list/screens/game_detail_screen.dart';
+import 'package:gamelog/screens/game_detail_screen.dart';
 import '../game_modal.dart';
 import '../theme/app_text_styles.dart';
 import 'app_cached_image.dart';

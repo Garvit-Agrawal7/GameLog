@@ -10,8 +10,8 @@ import '../services/igdb_service.dart';
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'package:my_game_list/screens/game_detail_screen.dart';
-import 'package:my_game_list/screens/add_game_modal.dart';
+import 'package:gamelog/screens/game_detail_screen.dart';
+import 'package:gamelog/screens/add_game_modal.dart';
 
 class SearchGamesWidget extends ConsumerStatefulWidget {
   const SearchGamesWidget({

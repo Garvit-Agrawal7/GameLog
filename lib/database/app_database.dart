@@ -24,7 +24,7 @@ class AppDatabase {
     }
     
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'my_game_list.db'));
+    final file = File(p.join(dbFolder.path, 'gamelog.db'));
 
     _db = sqlite3.open(file.path);
     gamesDao = GamesDao(_db);

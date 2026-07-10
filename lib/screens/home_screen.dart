@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+import 'package:path_provider/path_provider.dart';
 
 import '../database/database_providers.dart';
 import '../game_library_provider.dart';
 import '../services/igdb_service.dart';
+import '../services/auth_service.dart';
 import '../game_modal.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -41,6 +45,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _lastTopGenre;
 
   IgdbService get _service => widget.service ?? ref.read(igdbServiceProvider);
+
+  Future<void> _handleMenuAction(String action) async {
+    switch (action) {
+      case 'logout':
+        await ref.read(authProvider.notifier).clearSession();
+        break;
+      case 'download':
+        await _downloadGameData();
+        break;
+    }
+  }
+
+  Future<void> _downloadGameData() async {
+    final libraryGames = ref.read(libraryGamesProvider);
+    final export = {
+      'exported_at': DateTime.now().toIso8601String(),
+      'games': libraryGames
+          .map(
+            (game) => {
+              'id': game.id,
+              'title': game.title,
+              'cover_url': game.coverUrl,
+              'genres': game.genres,
+              'summary': game.summary,
+              'rating': game.rating,
+              'hours_played': game.hoursPlayed,
+              'time_to_beat_hours': game.timeToBeatHours,
+              'status': game.status,
+              'user_rating': game.userRating,
+              'year': game.year,
+              'in_library': game.inLibrary,
+              'last_updated': game.lastUpdated,
+            },
+          )
+          .toList(),
+    };
+    final file = File(
+      '/storage/emulated/0/Download/gamelog_library_export.json',
+    );
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(export));
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Game data saved to ${file.path}'),
+      ),
+    );
+  }
 
   Future<GameModal?> _fetchRecommendation(
     String genre,
@@ -102,30 +154,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 14),
-                Column(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Hello, PlayerOne!',
-                      style: AppTextStyles.caption.copyWith(fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.86,
-                      child: RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.display.copyWith(height: 1.18),
-                          children: const [
-                            TextSpan(text: 'What game will you\nplay '),
-                            TextSpan(
-                              text: 'next',
-                              style: TextStyle(color: AppColors.accentPurple),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hello, PlayerOne!',
+                            style: AppTextStyles.caption.copyWith(fontSize: 16),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.86,
+                            child: RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.display.copyWith(height: 1.18),
+                                children: const [
+                                  TextSpan(text: 'What game will you\nplay '),
+                                  TextSpan(
+                                    text: 'next',
+                                    style: TextStyle(color: AppColors.accentPurple),
+                                  ),
+                                  TextSpan(text: '?'),
+                                ],
+                              ),
                             ),
-                            TextSpan(text: '?'),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.menu_rounded,
+                        color: AppColors.textPrimary,
+                      ),
+                      color: AppColors.bg1,
+                      onSelected: _handleMenuAction,
+                      itemBuilder: (context) => const [
+                        PopupMenuItem<String>(
+                          value: 'logout',
+                          child: Text('Log out'),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'download',
+                          child: Text('Download Game Data'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

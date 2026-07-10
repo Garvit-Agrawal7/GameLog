@@ -59,14 +59,63 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
     );
   }
 
+  Future<void> _syncLibraryFromServer({
+    required String userId,
+    required String accessToken,
+  }) async {
+    final auth = ref.read(authServiceProvider);
+    final remoteGames = await auth.fetchLibrary(
+      userId: userId,
+      accessToken: accessToken,
+    );
+
+    await _database.gamesDao.clearAllGames();
+
+    for (final remoteGame in remoteGames) {
+      await _database.gamesDao.insertGame(
+        GameModel(
+          id: remoteGame.id,
+          title: remoteGame.title,
+          coverUrl: remoteGame.coverUrl,
+          genres: remoteGame.genres,
+          summary: remoteGame.summary,
+          rating: remoteGame.rating,
+          hoursPlayed: remoteGame.hoursPlayed,
+          timeToBeatHours: remoteGame.timeToBeatHours,
+          status: remoteGame.status,
+          userRating: remoteGame.userRating,
+          year: remoteGame.year,
+          inLibrary: remoteGame.inLibrary,
+          lastUpdated: remoteGame.lastUpdated,
+        ),
+      );
+    }
+  }
+
   @override
   Future<List<GameModal>> build() async {
     _database = AppDatabase();
     await _database.init();
+    final authState = ref.watch(authProvider);
     final storedUserUuid = _database.getStoredUserUuid();
-    if (storedUserUuid != null && ref.read(authProvider).userUuid == null) {
+    final userId = authState.userUuid ?? storedUserUuid;
+
+    if (storedUserUuid != null && authState.userUuid == null) {
       ref.read(authProvider.notifier).setUserUuid(storedUserUuid);
     }
+
+    final accessToken = authState.accessToken;
+    if (userId != null &&
+        userId.trim().isNotEmpty &&
+        accessToken != null &&
+        accessToken.trim().isNotEmpty &&
+        authState.status == AuthStatus.authenticated) {
+      await _syncLibraryFromServer(
+        userId: userId.trim(),
+        accessToken: accessToken.trim(),
+      );
+    }
+
     return _loadLibraryFromDb();
   }
 

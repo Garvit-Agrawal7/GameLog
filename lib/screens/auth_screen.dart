@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
-import '../database/dao/games_dao.dart';
-import '../game_library_provider.dart';
 import '../services/auth_service.dart';
 import '../main_shell.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../database/app_database.dart';
 import 'forgot_password_screen.dart';
 import 'verification_screen.dart';
 
@@ -77,11 +74,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           accessToken: result.accessToken,
           user: result.user,
         );
-    ref.invalidate(gameLibraryProvider);
-    await _syncLibraryFromBackend(
-      userId: result.user.id,
-      accessToken: result.accessToken,
-    );
   }
 
   Future<void> _submit() async {
@@ -170,46 +162,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-
-  Future<void> _syncLibraryFromBackend({
-    required String userId,
-    required String accessToken,
-  }) async {
-    final auth = ref.read(authServiceProvider);
-    final database = AppDatabase();
-    final remoteGames = await auth.fetchLibrary(
-      userId: userId,
-      accessToken: accessToken,
-    );
-
-    if (remoteGames.isEmpty) {
-      return;
-    }
-
-    await database.gamesDao.clearAllGames();
-
-    for (final remoteGame in remoteGames) {
-      await database.gamesDao.insertGame(
-        GameModel(
-          id: remoteGame.id,
-          title: remoteGame.title,
-          coverUrl: remoteGame.coverUrl,
-          genres: remoteGame.genres,
-          summary: remoteGame.summary,
-          rating: remoteGame.rating,
-          hoursPlayed: remoteGame.hoursPlayed,
-          timeToBeatHours: remoteGame.timeToBeatHours,
-          status: remoteGame.status,
-          userRating: remoteGame.userRating,
-          year: remoteGame.year,
-          inLibrary: remoteGame.inLibrary,
-          lastUpdated: remoteGame.lastUpdated,
-        ),
-      );
-    }
-
-    ref.invalidate(gameLibraryProvider);
-  }
 
   Future<void> _forgotPassword() async {
     if (!mounted) return;

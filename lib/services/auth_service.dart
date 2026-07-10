@@ -45,22 +45,6 @@ class AuthState {
       accessToken != null &&
       accessToken!.trim().isNotEmpty &&
       user != null;
-
-  AuthState copyWith({
-    Map<String, dynamic>? payload,
-    AuthStatus? status,
-    String? accessToken,
-    AuthUser? user,
-    String? error,
-  }) {
-    return AuthState(
-      payload: payload ?? this.payload,
-      status: status ?? this.status,
-      accessToken: accessToken ?? this.accessToken,
-      user: user ?? this.user,
-      error: error,
-    );
-  }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -73,29 +57,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       accessToken: state.accessToken,
       user: state.user,
       error: state.error,
-    );
-  }
-
-  void setAuthenticated({
-    required String accessToken,
-    required AuthUser user,
-  }) {
-    state = AuthState(
-      payload: state.payload,
-      status: AuthStatus.authenticated,
-      accessToken: accessToken,
-      user: user,
-      error: state.error,
-    );
-  }
-
-  void setInvalid([String? error]) {
-    state = AuthState(
-      payload: state.payload,
-      status: AuthStatus.invalid,
-      accessToken: state.accessToken,
-      user: state.user,
-      error: error,
     );
   }
 
@@ -325,33 +286,33 @@ class AuthService {
                 : const [];
 
     return items
-        .whereType<Map>()
-        .map(
-          (item) => RemoteLibraryGame(
-            id: (item['game_id'] ?? item['id']) as int,
-            title: (item['title'] ?? '') as String,
-            coverUrl: (item['cover_url'] ?? item['coverUrl'] ?? '') as String,
-            genres: (item['genres'] is List)
-                ? List<String>.from(item['genres'] as List)
-                : const <String>[],
-            summary: (item['summary'] ?? '') as String,
-            rating: (item['rating'] is num) ? (item['rating'] as num).toDouble() : 0.0,
-            hoursPlayed: (item['hours_played'] is num) ? (item['hours_played'] as num).toInt() : 0,
-            timeToBeatHours: item['time_to_beat_hours'] is num
-                ? (item['time_to_beat_hours'] as num).toInt()
-                : null,
-            status: item['status'] as String?,
-            userRating: item['user_rating'] is num ? (item['user_rating'] as num).toInt() : null,
-            year: (item['year'] is num) ? (item['year'] as num).toInt() : 0,
-            inLibrary: item['in_library'] is bool
-                ? item['in_library'] as bool
-                : item['in_library'] is num
-                    ? (item['in_library'] as num) != 0
-                    : true,
-            lastUpdated: (item['last_updated'] ?? item['lastUpdated'] ?? DateTime.now().toIso8601String()) as String,
-          ),
-        )
-        .toList();
+      .whereType<Map>()
+      .map(
+        (item) => RemoteLibraryGame(
+          id: (item['game_id'] ?? item['id']) as int,
+          title: (item['title'] ?? '') as String,
+          coverUrl: (item['cover_url'] ?? item['coverUrl'] ?? '') as String,
+          genres: (item['genres'] is List)
+            ? List<String>.from(item['genres'] as List)
+            : const <String>[],
+          summary: (item['summary'] ?? '') as String,
+          rating: (item['rating'] is num) ? (item['rating'] as num).toDouble() : 0.0,
+          hoursPlayed: (item['hours_played'] is num) ? (item['hours_played'] as num).toInt() : 0,
+          timeToBeatHours: item['time_to_beat_hours'] is num
+            ? (item['time_to_beat_hours'] as num).toInt()
+            : null,
+          status: item['status'] as String?,
+          userRating: item['user_rating'] is num ? (item['user_rating'] as num).toInt() : null,
+          year: (item['year'] is num) ? (item['year'] as num).toInt() : 0,
+          inLibrary: item['in_library'] is bool
+            ? item['in_library'] as bool
+            : item['in_library'] is num
+              ? (item['in_library'] as num) != 0
+              : true,
+          lastUpdated: (item['last_updated'] ?? item['lastUpdated'] ?? DateTime.now().toIso8601String()) as String,
+        ),
+      )
+      .toList();
   }
 }
 

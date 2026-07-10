@@ -101,8 +101,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     required int? statusCode,
     required String? detail,
   }) {
-    if (statusCode == 400 && detail == 'Invalid verification code') return 'Invalid code';
-    if (statusCode == 400 && detail == 'Verification code has expired') return 'Expired code';
+    if (statusCode == 400 && detail == 'Invalid verification code') return 'Invalid verification code';
+    if (statusCode == 400 && detail == 'Verification code has expired') return 'Verification code has expired';
     if (statusCode == 409 && detail == 'Verification code has already been used') return 'This code has already been used';
     return detail ?? 'An unexpected error occurred';
   }

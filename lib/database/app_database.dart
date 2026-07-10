@@ -110,27 +110,6 @@ class AppDatabase {
     return value is String && value.trim().isNotEmpty ? value.trim() : null;
   }
 
-  String? getStoredAccessToken() {
-    final rows = _db.select('SELECT access_token FROM auth_state_table WHERE id = 1');
-    if (rows.isEmpty) return null;
-    final value = rows.first['access_token'];
-    return value is String && value.trim().isNotEmpty ? value.trim() : null;
-  }
-
-  Future<void> saveAuthState({
-    required String userUuid,
-    required String accessToken,
-  }) async {
-    _db.execute(
-      'INSERT OR REPLACE INTO auth_state_table (id, user_uuid, access_token) VALUES (1, ?, ?)',
-      [userUuid, accessToken],
-    );
-  }
-
-  Future<void> clearAuthState() async {
-    _db.execute('DELETE FROM auth_state_table WHERE id = 1');
-  }
-
   Future<void> close() async {
     _db.close();
   }

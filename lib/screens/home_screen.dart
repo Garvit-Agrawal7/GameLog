@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:path_provider/path_provider.dart';
 
 import '../database/database_providers.dart';
 import '../game_library_provider.dart';
@@ -18,6 +17,7 @@ import '../widgets/game_cover_card.dart';
 import '../widgets/genre_chip.dart';
 import '../widgets/section_header.dart';
 import '../widgets/stat_column.dart';
+import 'auth_screen.dart';
 import 'game_detail_screen.dart';
 import 'search_screen.dart';
 
@@ -50,6 +50,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     switch (action) {
       case 'logout':
         await ref.read(authProvider.notifier).clearSession();
+        ref.invalidate(gameLibraryProvider);
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
         break;
       case 'download':
         await _downloadGameData();

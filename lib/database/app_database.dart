@@ -64,6 +64,14 @@ class AppDatabase {
       )
     ''');
 
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS auth_state_table (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        user_uuid TEXT,
+        access_token TEXT
+      )
+    ''');
+
       await _migrateSchema();
   }
   
@@ -94,6 +102,34 @@ class AppDatabase {
 
 
   Database get database => _db;
+
+  String? getStoredUserUuid() {
+    final rows = _db.select('SELECT user_uuid FROM auth_state_table WHERE id = 1');
+    if (rows.isEmpty) return null;
+    final value = rows.first['user_uuid'];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
+  }
+
+  String? getStoredAccessToken() {
+    final rows = _db.select('SELECT access_token FROM auth_state_table WHERE id = 1');
+    if (rows.isEmpty) return null;
+    final value = rows.first['access_token'];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
+  }
+
+  Future<void> saveAuthState({
+    required String userUuid,
+    required String accessToken,
+  }) async {
+    _db.execute(
+      'INSERT OR REPLACE INTO auth_state_table (id, user_uuid, access_token) VALUES (1, ?, ?)',
+      [userUuid, accessToken],
+    );
+  }
+
+  Future<void> clearAuthState() async {
+    _db.execute('DELETE FROM auth_state_table WHERE id = 1');
+  }
 
   Future<void> close() async {
     _db.close();

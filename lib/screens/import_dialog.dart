@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/auth_service.dart';
 import 'import_review_screen.dart';
+import 'package:gamelog/api_config.dart';
 
 Future<void> showImportGamesDialog(BuildContext context) {
   return showDialog<void>(
@@ -58,13 +59,13 @@ class _ImportGamesDialog extends ConsumerWidget {
               _ImportSourceButton(
                 assetPath: 'assets/images/steam_icon.png',
                 tooltip: 'Log into Steam',
-                onPressed: () => _launchSteamLogin(context),
+                onPressed: () => _launchLogin(context, 'steam'),
               ),
               const SizedBox(height: 16),
               _ImportSourceButton(
                 assetPath: 'assets/images/xbox_icon.png',
                 tooltip: 'Log into Xbox',
-                onPressed: () {},
+                onPressed: () => _launchLogin(context, 'xbox'),
               ),
               const SizedBox(height: 16),
               Align(
@@ -82,8 +83,8 @@ class _ImportGamesDialog extends ConsumerWidget {
   }
 }
 
-Future<void> _launchSteamLogin(BuildContext context) async {
-  final uri = Uri.parse('http://192.168.1.4:8000/auth/steam/login');
+Future<void> _launchLogin(BuildContext context, String app) async {
+  final uri = Uri.parse('${ApiConfig.baseUrl}/auth/${app}/login');
 
   final launched = await launchUrl(
     uri,
@@ -92,7 +93,7 @@ Future<void> _launchSteamLogin(BuildContext context) async {
 
   if (!launched && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open Steam login.')),
+      const SnackBar(content: Text('Could not login.')),
     );
   }
 }

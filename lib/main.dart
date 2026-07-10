@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_links/app_links.dart';
-import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'database/app_database.dart';
-import 'main_shell.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
+import 'services/dio_service.dart';
+import 'screens/auth_screen.dart';
+import 'main_shell.dart';
 
-const String _backendBaseUrl = 'http://192.168.1.4:8000';
+final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,16 @@ Future<void> main() async {
   await database.init();
 
   final container = ProviderContainer();
+
+  const storage = FlutterSecureStorage();
+  final storedUserUuid = await storage.read(key: 'user_uuid');
+  final storedAccessToken = await storage.read(key: 'access_token');
+  if (storedUserUuid != null) {
+    container.read(authProvider.notifier).setUserUuid(storedUserUuid);
+  }
+  if (storedAccessToken != null) {
+    container.read(authProvider.notifier).setAccessToken(storedAccessToken);
+  }
 
   _initDeepLinkListener(container);
 
@@ -43,9 +55,9 @@ void _initDeepLinkListener(ProviderContainer container) {
 }
 
 Future<void> _fetchSteamData(ProviderContainer container, String sessionToken) async {
-  final dio = Dio();
+  final dio = container.read(dioService);
   try {
-    final response = await dio.get('$_backendBaseUrl/auth/session/$sessionToken');
+    final response = await dio.get('/auth/session/$sessionToken');
     container.read(authProvider.notifier).setPayload(response.data);
   } catch (e) {
     container.read(authProvider.notifier).setError(e.toString());
@@ -61,7 +73,40 @@ class GameLogApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'GameLog',
       theme: darkTheme,
-      home: const MainShell(),
+      navigatorKey: navigatorKey,
+      home: const AppRoot(),
     );
+  }
+}
+
+class AppRoot extends ConsumerStatefulWidget {
+  const AppRoot({super.key});
+
+  @override
+  ConsumerState<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends ConsumerState<AppRoot> {
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      final hadToken = previous?.accessToken != null && previous!.accessToken!.trim().isNotEmpty;
+      final hasToken = next.accessToken != null && next.accessToken!.trim().isNotEmpty;
+
+      if (hadToken && !hasToken) {
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+              (route) => false,
+        );
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final isLoggedIn = authState.accessToken != null &&
+        authState.accessToken!.trim().isNotEmpty &&
+        authState.userUuid != null &&
+        authState.userUuid!.trim().isNotEmpty;
+
+    return isLoggedIn ? const MainShell() : const AuthScreen();
   }
 }

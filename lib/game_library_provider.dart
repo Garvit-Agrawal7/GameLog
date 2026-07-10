@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'game_modal.dart';
 import 'database/app_database.dart';
 import 'database/dao/games_dao.dart';
+import 'services/auth_service.dart';
+import 'services/dio_service.dart';
 
-// Async notifier for managing library games with database persistence
 class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
+
   late AppDatabase _database;
 
   Future<List<GameModal>> _loadLibraryFromDb() async {
@@ -12,22 +14,75 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
     return gameModels.map(_toGameModal).toList();
   }
 
+  List<GameModel> _libraryOnlyGames(List<GameModel> games) {
+    return games.where((game) => game.inLibrary && game.id != null).toList();
+  }
+
+  String? _resolveUserId() {
+    final authState = ref.read(authProvider);
+    if (authState.userUuid != null && authState.userUuid!.trim().isNotEmpty) {
+      return authState.userUuid!.trim();
+    }
+
+    return _database.getStoredUserUuid();
+  }
+
+  Map<String, dynamic> _toLibraryGamePayload(GameModel model) {
+    return {
+      'game_id': model.id,
+      'title': model.title,
+      'cover_url': model.coverUrl,
+      'genres': model.genres,
+      'summary': model.summary,
+      'rating': model.rating,
+      'hours_played': model.hoursPlayed,
+      'time_to_beat_hours': model.timeToBeatHours,
+      'status': model.status,
+      'user_rating': model.userRating,
+      'year': model.year,
+      'in_library': model.inLibrary,
+      'last_updated': model.lastUpdated,
+    };
+  }
+
+  Future<void> _syncLibraryToServer() async {
+    final userId = _resolveUserId();
+    if (userId == null) return;
+
+    final dio = ref.read(dioService);
+    final allGames = await _database.gamesDao.getAllGames();
+    final payload = _libraryOnlyGames(allGames).map(_toLibraryGamePayload).toList();
+
+    await dio.put(
+      '/database/users/$userId/library',
+      data: payload,
+    );
+  }
+
   @override
   Future<List<GameModal>> build() async {
     _database = AppDatabase();
     await _database.init();
+    final storedUserUuid = _database.getStoredUserUuid();
+    if (storedUserUuid != null && ref.read(authProvider).userUuid == null) {
+      ref.read(authProvider.notifier).setUserUuid(storedUserUuid);
+    }
     return _loadLibraryFromDb();
   }
 
-  // Add a game to library with status
-  Future<void> addToLibrary(GameModal game, {required String status, int? userRating}) async {
+  Future<void> addToLibrary(
+      GameModal game, {
+        required String status,
+        int? userRating,
+      }) async {
     final gameModel = _toGameModel(game);
     final updatedModel = gameModel.copyWith(
       inLibrary: true,
       status: status,
       userRating: userRating,
+      lastUpdated: DateTime.now().toIso8601String(),
     );
-    
+
     final existing = await _database.gamesDao.getGameById(game.id);
 
     if (existing != null) {
@@ -36,23 +91,37 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
       await _database.gamesDao.insertGame(updatedModel);
     }
 
-    // Reload the library so Riverpod state matches the database
+    try {
+      await _syncLibraryToServer();
+    } catch (e, st) {
+      state = AsyncValue.data(await _loadLibraryFromDb());
+      Error.throwWithStackTrace(e, st);
+    }
+
     state = AsyncValue.data(await _loadLibraryFromDb());
   }
 
-  // Remove a game from library
   Future<void> removeFromLibrary(int gameId) async {
-    // Delete the row from the database
     await _database.gamesDao.deleteGame(gameId);
+    try {
+      await _syncLibraryToServer();
+    } catch (e, st) {
+      state = AsyncValue.data(await _loadLibraryFromDb());
+      Error.throwWithStackTrace(e, st);
+    }
 
-    // Reload the library so the removed game is disappears from UI
-    final refreshed = await _loadLibraryFromDb();
-    state = AsyncValue.data(refreshed);
+    state = AsyncValue.data(await _loadLibraryFromDb());
   }
 
-  // Update a game's status
   Future<void> updateGameStatus(int gameId, String newStatus) async {
     await _database.gamesDao.updateGameStatus(gameId, newStatus);
+    try {
+      await _syncLibraryToServer();
+    } catch (e, st) {
+      state = AsyncValue.data(await _loadLibraryFromDb());
+      Error.throwWithStackTrace(e, st);
+    }
+
     state = AsyncValue.data(await _loadLibraryFromDb());
   }
 
@@ -93,23 +162,28 @@ class GameLibraryNotifier extends AsyncNotifier<List<GameModal>> {
   }
 }
 
-// Global async provider for the game library state
 final gameLibraryProvider =
-    AsyncNotifierProvider<GameLibraryNotifier, List<GameModal>>(() {
+AsyncNotifierProvider<GameLibraryNotifier, List<GameModal>>(() {
   return GameLibraryNotifier();
 });
 
-// Selector providers for convenience
 final libraryGamesProvider = Provider((ref) {
   final gamesAsync = ref.watch(gameLibraryProvider);
-  return gamesAsync.whenData((games) => games.where((g) => g.inLibrary).toList()).value ?? [];
+  return gamesAsync
+      .whenData((games) => games.where((g) => g.inLibrary).toList())
+      .value ??
+      [];
 });
 
-final gamesByStatusProvider = Provider.family<List<GameModal>, String>((ref, status) {
+final gamesByStatusProvider =
+Provider.family<List<GameModal>, String>((ref, status) {
   final gamesAsync = ref.watch(gameLibraryProvider);
   return gamesAsync
-      .whenData((games) => games.where((g) => g.status == status && g.inLibrary).toList())
-      .value ?? [];
+      .whenData((games) => games
+      .where((g) => g.status == status && g.inLibrary)
+      .toList())
+      .value ??
+      [];
 });
 
 final gameProvider = Provider.family<GameModal?, int>((ref, gameId) {
@@ -123,25 +197,19 @@ final gameProvider = Provider.family<GameModal?, int>((ref, gameId) {
   }).value;
 });
 
-// Provider to get recently completed games (sorted by last_updated)
 final recentlyCompletedProvider = Provider<List<GameModal>>((ref) {
   final gamesAsync = ref.watch(gameLibraryProvider);
   return gamesAsync
       .whenData((games) {
-        final completed = games
-            .where((g) =>
-                g.status == 'completed' &&
-                g.inLibrary)
-            .toList();
-        // Sort by lastUpdated descending (most recent first)
-        completed.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
-        return completed.take(4).toList();
-      })
+    final completed =
+    games.where((g) => g.status == 'completed' && g.inLibrary).toList();
+    completed.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+    return completed.take(4).toList();
+  })
       .value ??
       [];
 });
 
-// Provider to get top genre from the database
 final topGenreProvider = Provider<String?>((ref) {
   final libraryGames = ref.watch(libraryGamesProvider);
   if (libraryGames.isEmpty) return null;

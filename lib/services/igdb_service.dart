@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game_modal.dart';
+import 'dio_service.dart';
 
 class IgdbRateLimitException implements Exception {
   IgdbRateLimitException(this.message);
@@ -15,23 +16,11 @@ class IgdbRateLimitException implements Exception {
 }
 
 final igdbServiceProvider = Provider<IgdbService>((ref) {
-  return IgdbService();
+  return IgdbService(ref.watch(dioService));
 });
 
 class IgdbService {
-  IgdbService({
-    Dio? dio,
-    String? backendUrl,
-  })  : _dio = dio ??
-      Dio(
-        BaseOptions(
-          baseUrl:
-          '${_normalizeBaseUrl(backendUrl ?? 'http://192.168.1.4:8000')}/igdb',
-          headers: const {
-            'Accept': 'application/json',
-          },
-        ),
-      );
+  IgdbService(this._dio);
 
   final Dio _dio;
 
@@ -49,7 +38,7 @@ class IgdbService {
 
     try {
       final response = await _dio.get(
-        '/search',
+        '/igdb/search',
         queryParameters: {
           'query': trimmedQuery,
           'limit': limit,
@@ -70,7 +59,7 @@ class IgdbService {
   Future<List<GameModal>> fetchSimilarGames(int gameId) async {
     try {
       final response = await _dio.get(
-        '/similar',
+        '/igdb/similar',
         queryParameters: {
           'game_id': gameId,
         },
@@ -88,7 +77,7 @@ class IgdbService {
   Future<List<GameModal>> fetchTrendingGames({int limit = 10}) async {
     try {
       final response = await _dio.get(
-        '/trending',
+        '/igdb/trending',
         queryParameters: {
           'limit': limit,
         },
@@ -106,7 +95,7 @@ class IgdbService {
   Future<List<GameModal>> fetchUpcomingGames({int limit = 10}) async {
     try {
       final response = await _dio.get(
-        '/upcoming',
+        '/igdb/upcoming',
         queryParameters: {
           'limit': limit,
         },
@@ -127,7 +116,7 @@ class IgdbService {
 
     try {
       final response = await _dio.get(
-        '/by-genre',
+        '/igdb/by-genre',
         queryParameters: {
           'genre': trimmedGenre,
           'limit': limit,
@@ -159,7 +148,7 @@ class IgdbService {
 
       try {
         final response = await _dio.post(
-          '/enrich',
+          '/igdb/enrich',
           data: {
             'seeds': batch.map(_seedToMap).toList(),
           },
@@ -186,7 +175,7 @@ class IgdbService {
 
   Future<int?> fetchTimeToBeat(int gameId) async {
     try {
-      final response = await _dio.get('/time-to-beat/$gameId');
+      final response = await _dio.get('/igdb/time-to-beat/$gameId');
 
       final data = response.data;
       if (data is Map) {
@@ -257,10 +246,13 @@ class IgdbService {
     final rating = _readRating(data);
     final hoursPlayed = _readInt(data, 'hoursPlayed') ?? 0;
     final timeToBeatHours =
-        _readInt(data, 'timeToBeatHours') ?? _readInt(data, 'time_to_beat_hours');
+        _readInt(data, 'timeToBeatHours') ??
+            _readInt(data, 'time_to_beat_hours');
     final status = data['status'] as String?;
     final year = _readYear(data);
-    final inLibrary = data['inLibrary'] is bool ? data['inLibrary'] as bool : false;
+    final inLibrary = data['inLibrary'] is bool
+        ? data['inLibrary'] as bool
+        : false;
     final lastUpdated = data['lastUpdated'] as String? ?? '';
 
     return GameModal(
@@ -309,7 +301,9 @@ class IgdbService {
 
   String _readTitle(Map<String, dynamic> data) {
     final title = data['title'] ?? data['name'];
-    if (title is String && title.trim().isNotEmpty) {
+    if (title is String && title
+        .trim()
+        .isNotEmpty) {
       return title;
     }
     return 'Unknown Game';
@@ -349,13 +343,18 @@ class IgdbService {
       return null;
     })
         .whereType<String>()
-        .where((genre) => genre.trim().isNotEmpty)
+        .where((genre) =>
+    genre
+        .trim()
+        .isNotEmpty)
         .toList();
   }
 
   String _readSummary(Map<String, dynamic> data) {
     final summary = data['summary'] ?? data['description'];
-    if (summary is String && summary.trim().isNotEmpty) {
+    if (summary is String && summary
+        .trim()
+        .isNotEmpty) {
       return summary;
     }
     return '';
@@ -380,13 +379,19 @@ class IgdbService {
 
     final release = data['first_release_date'];
     if (release is int) {
-      return DateTime.fromMillisecondsSinceEpoch(release * 1000).year;
+      return DateTime
+          .fromMillisecondsSinceEpoch(release * 1000)
+          .year;
     }
     if (release is num) {
-      return DateTime.fromMillisecondsSinceEpoch(release.toInt() * 1000).year;
+      return DateTime
+          .fromMillisecondsSinceEpoch(release.toInt() * 1000)
+          .year;
     }
 
-    return DateTime.now().year;
+    return DateTime
+        .now()
+        .year;
   }
 
   int? _readInt(Map<String, dynamic> data, String key) {
@@ -398,12 +403,5 @@ class IgdbService {
       return value.toInt();
     }
     return null;
-  }
-
-  static String _normalizeBaseUrl(String url) {
-    if (url.endsWith('/')) {
-      return url.substring(0, url.length - 1);
-    }
-    return url;
   }
 }

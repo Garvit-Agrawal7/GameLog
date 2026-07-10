@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 
 import '../database/dao/games_dao.dart';
@@ -10,11 +9,18 @@ import '../main_shell.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../database/app_database.dart';
+import 'forgot_password_screen.dart';
+import 'verification_screen.dart';
 
 enum _AuthMode { login, signUp }
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key});
+  const AuthScreen({
+    super.key,
+    this.startInSignUp = false,
+  });
+
+  final bool startInSignUp;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -26,9 +32,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  _AuthMode _mode = _AuthMode.login;
+  late _AuthMode _mode;
   bool _isLoading = false;
   String? _authErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.startInSignUp ? _AuthMode.signUp : _AuthMode.login;
+  }
 
   @override
   void dispose() {
@@ -45,27 +57,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     required String email,
     required String password,
   }) async {
-    LoginResult result;
-    if (_mode == _AuthMode.login) {
-      result = await auth.login(userId: userId, password: password);
-    } else {
+    if (_mode == _AuthMode.signUp) {
       await auth.signUp(email: email, userId: userId, password: password);
-      result = await auth.login(userId: userId, password: password);
+      if (mounted) {
+        ref.read(authProvider.notifier).setPendingVerification();
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => VerificationScreen(
+              initialEmail: email,
+            ),
+          ),
+        );
+      }
+      return;
     }
 
-    ref.read(authProvider.notifier).setAccessToken(result.accessToken);
-    ref.read(authProvider.notifier).setUserUuid(result.userId);
-    await _saveSession(result);
+    final result = await auth.login(userId: userId, password: password);
+    await ref.read(authProvider.notifier).persistVerifiedSession(
+          accessToken: result.accessToken,
+          user: result.user,
+        );
+    ref.invalidate(gameLibraryProvider);
     await _syncLibraryFromBackend(
-      userId: result.userId,
+      userId: result.user.id,
       accessToken: result.accessToken,
     );
-  }
-
-  Future<void> _saveSession(LoginResult result) async {
-    const storage = FlutterSecureStorage();
-    await storage.write(key: 'access_token', value: result.accessToken);
-    await storage.write(key: 'user_uuid', value: result.userId);
   }
 
   Future<void> _submit() async {
@@ -83,6 +99,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       await _authenticate(auth: auth, userId: userId, email: email, password: password);
 
+      if (!mounted || _mode == _AuthMode.signUp) {
+        return;
+      }
+
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainShell()),
@@ -90,18 +110,47 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } on DioException catch (e) {
       if (mounted) {
-        if (e.response?.statusCode == 400) {
+        final detail = e.response?.data is Map<String, dynamic>
+            ? e.response?.data['detail']
+            : null;
+
+        if (e.response?.statusCode == 401 && _mode == _AuthMode.login && detail == 'Invalid credentials') {
           setState(() {
-            _authErrorMessage = _mode == _AuthMode.login
-                ? 'Invalid username or password'
-                : 'This username or email already exists';
+            _authErrorMessage = 'Invalid username or password';
           });
           return;
         }
 
-        if (e.response?.statusCode == 403 && _mode == _AuthMode.login) {
+        if (e.response?.statusCode == 403 && _mode == _AuthMode.login && detail == 'Account is disabled') {
           setState(() {
             _authErrorMessage = 'You have been temporarily restricted from using GameLog';
+          });
+          return;
+        }
+
+        if (e.response?.statusCode == 403 &&
+            _mode == _AuthMode.login &&
+            detail == 'Email is not verified') {
+          setState(() {
+            _authErrorMessage = 'Please verify your email before logging in';
+          });
+          return;
+        }
+
+        if (e.response?.statusCode == 400 &&
+            _mode == _AuthMode.signUp &&
+            detail == 'Email or userid already pending verification') {
+          setState(() {
+            _authErrorMessage = 'This account is already pending verification';
+          });
+          return;
+        }
+
+        if (e.response?.statusCode == 400 &&
+            _mode == _AuthMode.signUp &&
+            detail == 'Email or userid already exists') {
+          setState(() {
+            _authErrorMessage = 'Email or user ID already exists';
           });
           return;
         }
@@ -163,28 +212,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid email to reset password.')),
-      );
-      return;
-    }
-
-    try {
-      await ref.read(authServiceProvider).sendPasswordReset(email: email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset request sent.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ForgotPasswordScreen(),
+      ),
+    );
   }
 
   @override
@@ -370,6 +403,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             },
                             child: Text(
                               isLogin ? 'Need an account? Sign up' : 'Have an account? Login',
+                              style: const TextStyle(decoration: TextDecoration.underline),
                             ),
                           ),
                         ),

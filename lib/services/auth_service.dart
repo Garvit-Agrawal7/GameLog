@@ -4,44 +4,156 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'dio_service.dart';
 
+enum AuthStatus {
+  anonymous,
+  pendingVerification,
+  authenticated,
+  invalid,
+}
+
+class AuthUser {
+  final String id;
+  final String? email;
+  final Map<String, dynamic> raw;
+
+  const AuthUser({
+    required this.id,
+    required this.raw,
+    this.email,
+  });
+}
+
 class AuthState {
   final Map<String, dynamic>? payload;
-  final String? error;
+  final AuthStatus status;
   final String? accessToken;
-  final String? userUuid;
+  final AuthUser? user;
+  final String? error;
 
-  const AuthState({this.payload, this.error, this.accessToken, this.userUuid});
+  const AuthState({
+    this.payload,
+    this.status = AuthStatus.anonymous,
+    this.accessToken,
+    this.user,
+    this.error,
+  });
+
+  String? get userUuid => user?.id;
+
+  bool get isAuthenticated =>
+      status == AuthStatus.authenticated &&
+      accessToken != null &&
+      accessToken!.trim().isNotEmpty &&
+      user != null;
+
+  AuthState copyWith({
+    Map<String, dynamic>? payload,
+    AuthStatus? status,
+    String? accessToken,
+    AuthUser? user,
+    String? error,
+  }) {
+    return AuthState(
+      payload: payload ?? this.payload,
+      status: status ?? this.status,
+      accessToken: accessToken ?? this.accessToken,
+      user: user ?? this.user,
+      error: error,
+    );
+  }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
+  void setPendingVerification() {
+    state = AuthState(
+      payload: state.payload,
+      status: AuthStatus.pendingVerification,
+      accessToken: state.accessToken,
+      user: state.user,
+      error: state.error,
+    );
+  }
+
+  void setAuthenticated({
+    required String accessToken,
+    required AuthUser user,
+  }) {
+    state = AuthState(
+      payload: state.payload,
+      status: AuthStatus.authenticated,
+      accessToken: accessToken,
+      user: user,
+      error: state.error,
+    );
+  }
+
+  void setInvalid([String? error]) {
+    state = AuthState(
+      payload: state.payload,
+      status: AuthStatus.invalid,
+      accessToken: state.accessToken,
+      user: state.user,
+      error: error,
+    );
+  }
+
+  void setAnonymous() {
+    state = const AuthState();
+  }
+
   void setPayload(Map<String, dynamic> payload) {
     state = AuthState(
       payload: payload,
+      status: state.status,
       accessToken: state.accessToken,
-      userUuid: state.userUuid,
+      user: state.user,
+      error: state.error,
     );
   }
 
   void setError(String error) {
     state = AuthState(
-      error: error,
+      payload: state.payload,
+      status: state.status,
       accessToken: state.accessToken,
-      userUuid: state.userUuid,
+      user: state.user,
+      error: error,
     );
   }
 
   void setAccessToken(String token) {
-    state = AuthState(accessToken: token, userUuid: state.userUuid);
+    state = AuthState(
+      payload: state.payload,
+      status: state.status,
+      accessToken: token,
+      user: state.user,
+      error: state.error,
+    );
   }
 
   void setUserUuid(String userUuid) {
     state = AuthState(
       payload: state.payload,
-      error: state.error,
+      status: state.status,
       accessToken: state.accessToken,
-      userUuid: userUuid,
+      user: AuthUser(id: userUuid, raw: const <String, dynamic>{}),
+      error: state.error,
+    );
+  }
+
+  Future<void> persistVerifiedSession({
+    required String accessToken,
+    required AuthUser user,
+  }) async {
+    final storage = FlutterSecureStorage();
+    await storage.write(key: 'access_token', value: accessToken);
+    await storage.write(key: 'user_uuid', value: user.id);
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accessToken: accessToken,
+      user: user,
     );
   }
 
@@ -50,16 +162,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     const storage = FlutterSecureStorage();
     await storage.delete(key: 'access_token');
     await storage.delete(key: 'user_uuid');
+    await storage.delete(key: 'pending_verification_email');
   }
 }
 
 class LoginResult {
   final String accessToken;
-  final String userId;
+  final AuthUser user;
 
   const LoginResult({
     required this.accessToken,
-    required this.userId,
+    required this.user,
   });
 }
 
@@ -115,21 +228,22 @@ class AuthService {
     final data = response.data;
     if (data is Map && data['access_token'] is String) {
       final responseUser = data['user'];
-      final responseUserId = responseUser is Map && responseUser['id'] is String
-          ? responseUser['id'] as String
+      final userId = responseUser is Map
+          ? responseUser['id'] ?? responseUser['user_id'] ?? responseUser['uuid']
           : null;
-
-      if (responseUserId == null || responseUserId.trim().isEmpty) {
-        throw StateError('Login response did not include a user id.');
+      if (userId is String && userId.trim().isNotEmpty) {
+        return LoginResult(
+          accessToken: (data['access_token'] as String).trim(),
+          user: AuthUser(
+            id: userId.trim(),
+            email: responseUser is Map ? responseUser['email'] as String? : null,
+            raw: responseUser is Map ? Map<String, dynamic>.from(responseUser) : const <String, dynamic>{},
+          ),
+        );
       }
-
-      return LoginResult(
-        accessToken: data['access_token'] as String,
-        userId: responseUserId.trim(),
-      );
     }
 
-    throw StateError('Login response did not include an access token.');
+    throw StateError('Login response did not include a usable session payload.');
   }
 
   Future<void> signUp({
@@ -148,6 +262,20 @@ class AuthService {
     );
   }
 
+  Future<void> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    const path = '/auth/verify';
+    await _dio.post(
+      path,
+      data: {
+        'email': email,
+        'code': code,
+      },
+    );
+  }
+
   Future<void> sendPasswordReset({
     required String email,
   }) async {
@@ -156,6 +284,20 @@ class AuthService {
       path,
       data: {
         'email': email,
+      },
+    );
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    const path = '/auth/reset-password';
+    await _dio.post(
+      path,
+      data: {
+        'token': token,
+        'password': password,
       },
     );
   }

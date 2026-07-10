@@ -8,6 +8,7 @@ import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'services/dio_service.dart';
 import 'screens/auth_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'main_shell.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -43,15 +44,40 @@ Future<void> main() async {
 void _initDeepLinkListener(ProviderContainer container) {
   final appLinks = AppLinks();
 
-  appLinks.uriLinkStream.listen((uri) async {
-    if (uri.scheme == 'gamelog' && uri.host == 'auth' && uri.path == '/complete') {
-      final fragment = uri.fragment;
-      if (!fragment.startsWith('session=')) return;
-
-      final sessionToken = fragment.replaceFirst('session=', '');
-      await _fetchSteamData(container, sessionToken);
+  appLinks.getInitialAppLink().then((uri) {
+    if (uri != null) {
+      _handleDeepLink(container, uri);
     }
   });
+
+  appLinks.uriLinkStream.listen((uri) async {
+    _handleDeepLink(container, uri);
+  });
+}
+
+Future<void> _handleDeepLink(ProviderContainer container, Uri uri) async {
+  if (uri.scheme == 'gamelog' && uri.host == 'auth' && uri.path == '/complete') {
+    final fragment = uri.fragment;
+    if (!fragment.startsWith('session=')) return;
+
+    final sessionToken = fragment.replaceFirst('session=', '');
+    await _fetchSteamData(container, sessionToken);
+  }
+  if (uri.scheme == 'gamelog' && uri.host == 'reset-password' && uri.path.isEmpty) {
+    final code = uri.queryParameters['code'];
+    if (code == null || code.isEmpty) return;
+
+    const storage = FlutterSecureStorage();
+    final lastConsumedCode = await storage.read(key: 'consumed_reset_code');
+    if (lastConsumedCode == code) return;
+    await storage.write(key: 'consumed_reset_code', value: code);
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => ResetPasswordScreen(code: code),
+      ),
+    );
+  }
 }
 
 Future<void> _fetchSteamData(ProviderContainer container, String sessionToken) async {

@@ -147,7 +147,8 @@ class GamesDao {
     final hoursPlayed = _db.select(
       'SELECT COALESCE(SUM(CASE '
       'WHEN hours_played > 0 THEN hours_played '
-      'ELSE COALESCE(time_to_beat_hours, 0) '
+      'WHEN status = \'completed\' THEN COALESCE(time_to_beat_hours, 0) '
+      'ELSE 0 '
       'END), 0) as total '
       'FROM games_table',
     );

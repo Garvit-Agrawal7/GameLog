@@ -58,7 +58,6 @@ GameLog is a personal game tracking app with a dark cinematic UI. Search and add
 ### Prerequisites
 
 - Flutter SDK
-- IGDB API credentials (Client ID and Client Secret from [Twitch Developer Console](https://dev.twitch.tv/console))
 
 ### Installation
 
@@ -66,13 +65,6 @@ GameLog is a personal game tracking app with a dark cinematic UI. Search and add
 git clone https://github.com/yourusername/gamelog.git
 cd gamelog
 flutter pub get
-```
-
-Create a `.env` file in the project root:
-
-```
-CLIENT_ID=your_igdb_client_id
-CLIENT_SECRET=your_igdb_client_secret
 ```
 
 ```bash

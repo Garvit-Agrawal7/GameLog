@@ -7,7 +7,7 @@ import '../main_shell.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'forgot_password_screen.dart';
-// import 'verification_screen.dart';
+import 'verification_screen.dart';
 
 enum _AuthMode { login, signUp }
 
@@ -57,17 +57,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (_mode == _AuthMode.signUp) {
       await auth.signUp(email: email, userId: userId, password: password);
       if (mounted) {
-        // ref.read(authProvider.notifier).setPendingVerification();
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(
-        //     builder: (_) => VerificationScreen(
-        //       initialEmail: email,
-        //     ),
-        //   ),
-        // );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User is created, login to continue.')),
-        );
+        ref.read(authProvider.notifier).setPendingVerification();
+        Navigator.of(context).pushReplacement(
+           MaterialPageRoute(
+             builder: (_) => VerificationScreen(
+               initialEmail: email,
+             ),
+           ),
+         );
       }
       return;
     }

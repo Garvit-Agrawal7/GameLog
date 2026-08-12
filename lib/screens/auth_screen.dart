@@ -59,12 +59,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (mounted) {
         ref.read(authProvider.notifier).setPendingVerification();
         Navigator.of(context).pushReplacement(
-           MaterialPageRoute(
-             builder: (_) => VerificationScreen(
-               initialEmail: email,
-             ),
-           ),
-         );
+          MaterialPageRoute(
+            builder: (_) => VerificationScreen(
+              initialEmail: email,
+            ),
+          ),
+        );
       }
       return;
     }

@@ -10,6 +10,11 @@ class GenreChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayLabel =
+    label == "Hack and slash/Beat 'em up"
+        ? "Hack and Slash"
+        : label;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -17,7 +22,7 @@ class GenreChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        label,
+        displayLabel,
         style: AppTextStyles.caption.copyWith(color: AppColors.accentPurple),
       ),
     );

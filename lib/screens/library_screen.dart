@@ -34,11 +34,20 @@ class LibraryScreen extends ConsumerWidget {
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
-              child: IconButton(
-                tooltip: 'Import games',
-                icon: const Icon(Icons.file_upload_outlined, size: 20),
-                color: AppColors.accentPurple,
+              child: TextButton(
                 onPressed: () => showImportGamesDialog(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentPurple,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Import games'),
+                    SizedBox(width: 6),
+                    Icon(Icons.file_upload_outlined, size: 20),
+                  ],
+                ),
               ),
             ),
           ],
@@ -55,11 +64,20 @@ class LibraryScreen extends ConsumerWidget {
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
-              child: IconButton(
-                tooltip: 'Import games',
-                icon: const Icon(Icons.file_upload_outlined, size: 20),
-                color: AppColors.accentPurple,
+              child: TextButton(
                 onPressed: () => showImportGamesDialog(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentPurple,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Import games'),
+                    SizedBox(width: 6),
+                    Icon(Icons.file_upload_outlined, size: 20),
+                  ],
+                ),
               ),
             ),
           ],
@@ -112,11 +130,20 @@ class _LibraryTabScaffoldState extends State<_LibraryTabScaffold> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: IconButton(
-              tooltip: 'Import games',
-              icon: const Icon(Icons.file_upload_outlined, size: 20),
-              color: AppColors.accentPurple,
+            child: TextButton(
               onPressed: () => showImportGamesDialog(context),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accentPurple,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Import games'),
+                  SizedBox(width: 6),
+                  Icon(Icons.file_upload_outlined, size: 20),
+                ],
+              ),
             ),
           ),
         ],

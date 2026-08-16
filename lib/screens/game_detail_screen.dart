@@ -185,7 +185,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 28 + MediaQuery.of(context).padding.bottom,),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

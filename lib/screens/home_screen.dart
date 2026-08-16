@@ -167,10 +167,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Hello, PlayerOne!',
-                            style: AppTextStyles.caption.copyWith(fontSize: 16),
-                          ),
                           const SizedBox(height: 10),
                           SizedBox(
                             width: MediaQuery.of(context).size.width * 0.86,

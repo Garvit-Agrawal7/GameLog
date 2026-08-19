@@ -30,7 +30,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     'Adventure',
     'Arcade',
     'Fighting',
-    'Hack and slash',
+    // 'Hack and slash',
     'Indie',
     'MOBA',
     'Platform',
@@ -65,7 +65,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     if (_selectedGenre == genre) return;
     setState(() {
       _selectedGenre = genre;
-      if (genre == 'Hack and slash') _selectedGenre = 'Hack and slash/Beat \'em up';
+      // if (genre == 'Hack and slash') _selectedGenre = 'Hack and slash/Beat \'em up';
       _topGenreFuture = _service.fetchByGenre(_selectedGenre, limit: 50).catchError((_) => <GameModal>[]);
     });
   }

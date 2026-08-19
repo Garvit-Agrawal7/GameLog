@@ -35,6 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _initialLoadScheduled = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadRecommendation();
@@ -43,6 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<GameModal?>? _recommendedFuture;
   String? _lastTopGenre;
+  bool _initialLoadScheduled = false;
 
   IgdbService get _service => widget.service ?? ref.read(igdbServiceProvider);
 
@@ -104,7 +106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String genre,
     Set<int> libraryIds,
   ) async {
-    final candidates = await _service.fetchByGenre(genre, limit: 50);
+    final candidates = await _service.fetchByGenre(genre, limit: 100);
     final filtered = candidates.where((g) => !libraryIds.contains(g.id)).toList();
     if (filtered.isEmpty) return null;
 
@@ -145,7 +147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       error: (_, __) => LibraryStats.empty(),
     );
 
-    if (topGenre != null && topGenre != _lastTopGenre) {
+    if (!_initialLoadScheduled && topGenre != null && topGenre != _lastTopGenre) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadRecommendation();
       });

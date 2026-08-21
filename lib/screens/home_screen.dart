@@ -267,7 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       }
 
                       if (!snapshot.hasData) {
-                        return const Text('No recommendations available');
+                        return const Text('Rate more games to get recommendations!');
                       }
 
                       return _RecommendationCard(game: snapshot.data!, onReturn: _loadRecommendation,);

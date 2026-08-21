@@ -28,7 +28,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   String _selectedGenre = 'Adventure';
   static const List<String> _allGenres = [
     'Adventure',
-    'Arcade',
     'Fighting',
     // 'Hack and slash',
     'Indie',

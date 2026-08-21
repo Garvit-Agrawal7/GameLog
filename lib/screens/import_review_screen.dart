@@ -20,9 +20,9 @@ class ImportReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
-  static const int _droppedPlaytimeThresholdMinutes = 2;
+  static const int _droppedPlaytimeThresholdMinutes = 10;
   static const int _droppedInactiveThresholdDays = 180;
-  static const int _playingRecentThresholdDays = 30;
+  static const int _playingRecentThresholdDays = 7;
 
   static const List<String> _statusOptions = [
     'playing',
@@ -48,13 +48,13 @@ class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
   }
 
   String _defaultStatusForGame(Map<String, dynamic> game) {
+    final provider = widget.payload['provider'];
     final playtime = game['playtime_forever'];
 
     final lastPlayed = game['rtime_last_played'];
     final lastPlayedDate = DateTime.fromMillisecondsSinceEpoch(lastPlayed.toInt() * 1000, isUtc: true);
     final now = DateTime.now().toUtc();
 
-    if (playtime == 0) return 'backlog';
     if (lastPlayed != 0) {
       final daysSinceLastPlayed = now.difference(lastPlayedDate).inDays;
 
@@ -62,11 +62,24 @@ class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
         return 'playing';
       }
 
-      if (playtime > 0 && playtime < _droppedPlaytimeThresholdMinutes && daysSinceLastPlayed > _droppedInactiveThresholdDays) {
+      if (playtime != null && playtime > 0 && playtime < _droppedPlaytimeThresholdMinutes && daysSinceLastPlayed > _droppedInactiveThresholdDays) {
         return 'dropped';
       }
     }
 
+    if (provider == 'xbox') {
+      final totalAchievements = game['total_achievements'];
+      if (totalAchievements != null) {
+        final currentAchievements = game['current_achievements'];
+        final progressPercentage = game['progress_percentage'];
+        if (currentAchievements == 0 && progressPercentage == 0) {
+          return 'backlog';
+        }
+      }
+      return 'completed';
+    }
+
+    if (playtime == 0) return 'backlog';
     return 'completed';
   }
 
@@ -96,7 +109,7 @@ class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
 
       final model = GameModal(
         id: gameId,
-        title: (game['igdb_name'] ?? game['steam_name'] ?? 'Unknown') as String,
+        title: (game['igdb_name'] ?? game['name'] ?? 'Unknown') as String,
         coverUrl: (game['cover_url'] ?? '') as String,
         genres: List<String>.from((game['genres'] ?? const <String>[]) as List),
         summary: (game['summary'] ?? '') as String,
@@ -199,7 +212,7 @@ class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
                                   Expanded(
                                     child: Text(
                                       game['igdb_name'] ??
-                                          game['steam_name'] ??
+                                          game['name'] ??
                                           'Unknown',
                                       style: AppTextStyles.title.copyWith(
                                         fontSize: 16,

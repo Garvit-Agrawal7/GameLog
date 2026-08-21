@@ -61,7 +61,7 @@ Future<void> _handleDeepLink(ProviderContainer container, Uri uri) async {
     if (!fragment.startsWith('session=')) return;
 
     final sessionToken = fragment.replaceFirst('session=', '');
-    await _fetchSteamData(container, sessionToken);
+    await _fetchProviderData(container, sessionToken);
   }
   if (uri.scheme == 'gamelog' && uri.host == 'reset-password' && uri.path.isEmpty) {
     final code = uri.queryParameters['code'];
@@ -80,7 +80,7 @@ Future<void> _handleDeepLink(ProviderContainer container, Uri uri) async {
   }
 }
 
-Future<void> _fetchSteamData(ProviderContainer container, String sessionToken) async {
+Future<void> _fetchProviderData(ProviderContainer container, String sessionToken) async {
   final dio = container.read(dioService);
   try {
     final response = await dio.get('/auth/session/$sessionToken');

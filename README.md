@@ -6,7 +6,7 @@
 ---
 
 ## Download from here
-<a href="https://github.com/Garvit-Agrawal7/GameLog/releases/download/v1.1.0-beta.3/gamelog.apk"><img width="150" alt="images" src="https://github.com/user-attachments/assets/915ea568-ba70-49a2-977e-9de7b6d3f7ab" /></a>
+<a href="https://github.com/Garvit-Agrawal7/GameLog/releases/tag/v1.0.0/gamelog.apk"><img width="150" alt="images" src="https://github.com/user-attachments/assets/915ea568-ba70-49a2-977e-9de7b6d3f7ab" /></a>
 
 
 ## Screenshots

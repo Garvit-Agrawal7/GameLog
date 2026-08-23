@@ -49,7 +49,7 @@ class _ImportReviewScreenState extends ConsumerState<ImportReviewScreen> {
 
   String _defaultStatusForGame(Map<String, dynamic> game) {
     final provider = widget.payload['provider'];
-    final playtime = game['playtime_forever'];
+    final playtime = game['playtime_forever'] ?? 0;
 
     final lastPlayed = game['rtime_last_played'];
     final lastPlayedDate = DateTime.fromMillisecondsSinceEpoch(lastPlayed.toInt() * 1000, isUtc: true);
